@@ -91,7 +91,7 @@ func get_system_guid(msg *msg_t) {
 func get_channel_auth_capabilties(msg *msg_t) {
 	var data [9]uint8
 
-	if debug > 1 {
+	if debug > 0 {
 		fmt.Println("get chan auth caps message")
 	}
 	// no session only allowed with authtype_none
@@ -199,13 +199,11 @@ func get_session_challenge(msg *msg_t) {
 	sid = (lanserv.next_chall_seq << (USER_BITS_REQ + 1)) |
 		(uint32(user.idx) << 1) | 1
 	lanserv.next_chall_seq++
-	if debug > 1 {
+	if debug > 0 {
 		fmt.Printf("Temp-session-id: %x\n", sid)
 	}
-	// hack for freeipmi does not take into account endianess
-	//binary.BigEndian.PutUint32(data[1:5], sid)
 	binary.LittleEndian.PutUint32(data[1:5], sid)
-	if debug > 1 {
+	if debug > 0 {
 		fmt.Printf("Temp-session-id: %x\n", data[1:5])
 	}
 
@@ -215,12 +213,7 @@ func get_session_challenge(msg *msg_t) {
 		0x08, 0x09, 0x0a, 0x0b,
 		0x0c, 0x0d, 0x0e, 0x0f}
 	copy(data[5:], test_chall[0:])
-	//if rv {
-	//	fmt.Println("Session challenge failed: generating challenge")
-	//	msg.return_err(nil, IPMI_UNKNOWN_ERR_CC)
-	//} else {
 	msg.return_rsp_data(nil, data[0:21], 21)
-	//}
 }
 
 func find_free_session() *session_t {
@@ -284,9 +277,6 @@ func activate_session(msg *msg_t) {
 			return
 		}
 
-		// hack for freeipmi
-		//xmit_seq :=
-		//	binary.BigEndian.Uint32(msg.data[data_start+18 : data_start+22])
 		xmit_seq :=
 			binary.LittleEndian.Uint32(msg.data[data_start+18 : data_start+22])
 
@@ -350,9 +340,6 @@ func activate_session(msg *msg_t) {
 		data[0] = 0
 		data[1] = session.authtype
 
-		// hack for freeipmi does not take into account endianess
-		//binary.BigEndian.PutUint32(data[2:6], session.sid)
-		//binary.BigEndian.PutUint32(data[6:10], session.recv_seq)
 		binary.LittleEndian.PutUint32(data[2:6], session.sid)
 		binary.LittleEndian.PutUint32(data[6:10], session.recv_seq)
 
@@ -371,17 +358,12 @@ func activate_session(msg *msg_t) {
 
 		// We are already connected, we ignore everything
 		// but the outbound sequence number.
-		// hack for freeipmi
-		//session.xmit_seq = binary.BigEndian.Uint32(msg.data[18:22])
 		session.xmit_seq = binary.LittleEndian.Uint32(msg.data[18:22])
 
 		// Build response and send back
 		data[0] = 0
 		data[1] = session.authtype
 
-		// hack for freeipmi does not take into account endianess
-		//binary.BigEndian.PutUint32(data[2:6], session.sid)
-		//binary.BigEndian.PutUint32(data[6:10], session.recv_seq)
 		binary.LittleEndian.PutUint32(data[2:6], session.sid)
 		binary.LittleEndian.PutUint32(data[6:10], session.recv_seq)
 
@@ -450,8 +432,6 @@ func close_session(msg *msg_t) {
 	}
 
 	data_start := msg.data_start
-	// hack for freeipmi
-	//sid = binary.BigEndian.Uint32(msg.data[data_start : data_start+4])
 	sid = binary.LittleEndian.Uint32(msg.data[data_start : data_start+4])
 	if sid != session.sid {
 		// Close session from another session
@@ -482,63 +462,83 @@ func close_session(msg *msg_t) {
 }
 
 func get_session_info(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_authcode(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func set_channel_access(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_channel_access(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_channel_info(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func set_user_access(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_user_access(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func set_user_name(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_user_name(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func set_user_password(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func activate_payload(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func deavtivate_payload(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_payload_activation_status(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_payload_instance_info(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func set_user_payload_access(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_user_payload_access(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_channel_payload_support(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_channel_payload_version(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_channel_oem_payload_info(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func master_read_write(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_channel_cipher_suites(msg *msg_t) {
@@ -555,10 +555,13 @@ func get_channel_cipher_suites(msg *msg_t) {
 }
 
 func suspend_resume_payload_encryption(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func set_channel_security_key(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
 
 func get_system_interface_capabilities(msg *msg_t) {
+	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
 }
