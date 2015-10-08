@@ -12,7 +12,7 @@ Architecture Notes:
 - A limited number of netfunctions/commands are implemented
   with a mind to having the minimal set required to control
   a white-box networking switch over lan
-- Given the static nature of a white-box networking switch
+- Given the static nature of a white-box networking switch,
   static initialization of several components will be done.
   This is a similar approach to ipmi_sim. These initialized components
   include:
@@ -28,5 +28,9 @@ Architecture Notes:
 Todo:
 - Simulation vs real-target flags
 - Sensor polling support from target sysclass fs
-- Straight authentication
+- Straight authentication functionality
+- LAN alerts via PET ? snmpd ?
+- ASF ping support [done]
 - Persistence support
+- Other functions required for white box switch eg cold-reset,
+  warm-reset, manufacturing-test

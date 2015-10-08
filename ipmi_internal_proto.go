@@ -21,7 +21,7 @@ const (
 	MAX_SESSIONS     = 16
 )
 
-const debug = 0
+var debug bool = false
 
 type lanparm_data_t struct {
 	set_in_progress  uint8
@@ -93,7 +93,7 @@ func find_user(username []uint8, name_only_lookup bool, priv uint8) *user_t {
 	}
 
 	if found_user != nil {
-		if debug > 0 {
+		if debug {
 			fmt.Println("find_user: ", string(found_user.username))
 		}
 	}
@@ -239,7 +239,7 @@ func sid_to_session(sid uint32) *session_t {
 		session *session_t
 	)
 
-	if debug > 0 {
+	if debug {
 		fmt.Printf("sid_to_session: %x\n", sid)
 	}
 	if sid&1 == 1 {

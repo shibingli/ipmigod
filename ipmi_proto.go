@@ -119,7 +119,7 @@ func ipmigod_main() {
 		n, remote_addr, err :=
 			server_conn.ReadFromUDP(msg.data[0:])
 		msg.remote_addr = remote_addr
-		if debug > 0 {
+		if debug {
 			fmt.Println("Received ", n, " bytes from ",
 				msg.remote_addr)
 		}
@@ -150,7 +150,7 @@ func (msg *msg_t) ipmi_handle_msg() {
 		//ipmi_handle_rmcpp_msg(lan, &msg);
 		fmt.Println("Received RMCP+ message!")
 	} else {
-		if debug > 0 {
+		if debug {
 			fmt.Println("Received RMCP message!")
 		}
 		(netfunc_processors[msg.rmcp.message.netfn])(msg)
@@ -160,12 +160,20 @@ func (msg *msg_t) ipmi_handle_msg() {
 func (msg *msg_t) ipmi_parse_msg() {
 	data_start := msg.data_start
 
-	// Peek ahead to see if we have an RMCP or RMCP+ message
-	if msg.data[data_start+4] == IPMI_AUTHTYPE_RMCP_PLUS {
-		fmt.Println("LAN msg not supported RMCP+")
-		//ipmi_parse_rmcpp_msg(msg)
+	if msg.data[data_start+3] == 6 {
+		// Handle ASF ping message
+		asf_ping(msg)
+	} else if msg.data[data_start+3] == 7 {
+		// Peek ahead to see if we have an RMCP or RMCP+ message
+		if msg.data[data_start+4] == IPMI_AUTHTYPE_RMCP_PLUS {
+			fmt.Println("LAN msg not supported RMCP+")
+			//ipmi_parse_rmcpp_msg(msg)
+		} else {
+			msg.ipmi_parse_rmcp_msg()
+		}
 	} else {
-		msg.ipmi_parse_rmcp_msg()
+		fmt.Println("LAN msg has unsupported class",
+			msg.data[data_start+3])
 	}
 }
 
@@ -191,7 +199,7 @@ func (msg *msg_t) ipmi_parse_rmcp_msg() {
 		binary.LittleEndian.Uint32(msg.data[data_start+1 : data_start+5])
 	msg.rmcp.session.sid =
 		binary.LittleEndian.Uint32(msg.data[data_start+5 : data_start+9])
-	if debug > 0 {
+	if debug {
 		fmt.Printf("Session_id from freeipmi: %x\n",
 			msg.rmcp.session.sid)
 	}
@@ -278,7 +286,7 @@ func (msg *msg_t) return_rsp(session *session_t, rsp *rsp_msg_data_t) {
 	data[dcur] = (rsp.netfn << 2) | msg.rmcp.message.rq_lun
 	dcur++
 	data[dcur] = uint8(ipmi_checksum(data[start_of_msg:start_of_msg+2], 2, 0))
-	if debug > 0 {
+	if debug {
 		fmt.Printf("csum1: %x\n", data[dcur])
 	}
 	dcur++
@@ -295,7 +303,7 @@ func (msg *msg_t) return_rsp(session *session_t, rsp *rsp_msg_data_t) {
 		int(rsp.data_len), csum)
 	dcur += int(rsp.data_len)
 	data[dcur] = uint8(csum)
-	if debug > 0 {
+	if debug {
 		fmt.Printf("csum2: %x\n", data[dcur])
 	}
 	dcur++
@@ -307,7 +315,7 @@ func (msg *msg_t) return_rsp(session *session_t, rsp *rsp_msg_data_t) {
 		//    rsp->data, rsp->data_len,
 		//    &csum, 1);
 	}
-	if debug > 0 {
+	if debug {
 		fmt.Println("Sending", dcur, " bytes to", msg.remote_addr)
 	}
 	msg.conn.WriteToUDP(data[0:dcur], msg.remote_addr)
@@ -591,4 +599,51 @@ func group_extension_netfn(msg *msg_t) {
 func oem_group_netfn(msg *msg_t) {
 	fmt.Println("oem_group_netfn not supported",
 		msg.rmcp.message.cmd)
+}
+
+const ASF_IANA = 4542
+
+func asf_ping(msg *msg_t) {
+	var rsp [28]uint8
+	data_start := msg.data_start
+
+	// Check message integrity and if it's a ping.
+	if msg.data_len < 12 {
+		return
+	}
+	if binary.LittleEndian.Uint32(msg.data[data_start+4:data_start+8]) != ASF_IANA {
+		return // Not ASF IANA
+	}
+	if msg.data[data_start+8] != 0x80 {
+		return // Not a presence ping.
+	}
+
+	// Ok, it's a valid RMCP/ASF Presence Ping
+	rsp[0] = 6
+	rsp[1] = 0
+	rsp[2] = 0xff // No ack since it's not required, so we don't do it.
+	rsp[3] = 6    // ASF class
+	binary.LittleEndian.PutUint32(rsp[4:8], ASF_IANA)
+	rsp[8] = 0x40                   // Presense Pong
+	rsp[9] = msg.data[data_start+9] // Message tag
+	rsp[10] = 0
+	rsp[11] = 16 // Data length
+	// no special capabilities
+	binary.LittleEndian.PutUint32(rsp[12:16], ASF_IANA)
+	binary.LittleEndian.PutUint32(rsp[16:20], 0)
+	rsp[20] = 0x81 // We support IPMI
+	rsp[21] = 0x0  // No supported interactions
+	rsp[22] = 0x0  // Reserved
+	rsp[23] = 0x0  // Reserved
+	rsp[24] = 0x0  // Reserved
+	rsp[25] = 0x0  // Reserved
+	rsp[26] = 0x0  // Reserved
+	rsp[27] = 0x0  // Reserved
+
+	if debug {
+		fmt.Println("Sending ASF Ping Pong")
+	}
+
+	// Return the response.
+	msg.conn.WriteToUDP(rsp[0:28], msg.remote_addr)
 }

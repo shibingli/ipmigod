@@ -91,7 +91,7 @@ func get_system_guid(msg *msg_t) {
 func get_channel_auth_capabilties(msg *msg_t) {
 	var data [9]uint8
 
-	if debug > 0 {
+	if debug {
 		fmt.Println("get chan auth caps message")
 	}
 	// no session only allowed with authtype_none
@@ -199,11 +199,11 @@ func get_session_challenge(msg *msg_t) {
 	sid = (lanserv.next_chall_seq << (USER_BITS_REQ + 1)) |
 		(uint32(user.idx) << 1) | 1
 	lanserv.next_chall_seq++
-	if debug > 0 {
+	if debug {
 		fmt.Printf("Temp-session-id: %x\n", sid)
 	}
 	binary.LittleEndian.PutUint32(data[1:5], sid)
-	if debug > 0 {
+	if debug {
 		fmt.Printf("Temp-session-id: %x\n", data[1:5])
 	}
 
@@ -323,7 +323,7 @@ func activate_session(msg *msg_t) {
 		session.time_left = lanserv.default_session_timeout
 
 		lanserv.active_sessions++
-		if debug > 0 {
+		if debug {
 			fmt.Printf("Activate session: Session opened\n")
 			fmt.Printf("0x%x, max priv %d\n", user_idx, max_priv)
 		}
