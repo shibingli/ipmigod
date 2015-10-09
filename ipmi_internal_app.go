@@ -372,7 +372,7 @@ func activate_session(msg *msg_t) {
 		msg.return_rsp_data(session, data[0:11], 11)
 
 	}
-
+	fmt.Printf("\nSession %d activated\n", session.handle)
 }
 
 func set_session_privilege(msg *msg_t) {

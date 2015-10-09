@@ -73,6 +73,7 @@ func init() {
 	//Complete.Set(name, complete)
 	//Help.Set(name, help)
 	Usage.Set(name, `ipmigod [OPTIONS]...`)
+	CommandFlags.Set("ipmigod", []string{"-background"})
 	Command.Set(name, func(_ *Context, _ ...string) {
 		ipmigod_main()
 	})

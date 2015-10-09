@@ -94,15 +94,52 @@ func bmc_init() {
 	// In production, a similar scheme could be used or
 	// perhaps a more dynamic scheme where the sysclass fs is
 	// scanned to gather these params.
-	sensor_add(0x20, 0, 1, 1, 1)
-	sensor_name := []uint8{'D', 'J', 't', 'e', 'm', 'p'}
-	main_sdr_add(0x20, 0x0001, 0x51, 1, 0x31, 0x20, 0, 1,
-		3, 1, 0x67, 0x88, 1, 1, 0xC00F,
-		0xC07F, 0x3838, 0, 1, 0, 0,
-		1, 0, 0, 0, 0, 0, 3, 0x60,
-		0xB0, 0, 0xB0, 0, 0xA0, 0x90, 0x66, 0,
-		0, 0, 0, 0, 0, 0, 0, 0xC6,
-		sensor_name)
+	if simulate {
+		// sensor 1 - temp
+		sensor_add(0x20, 0, 1, 1, 1)
+		sensor_name1 := []uint8{'D', 'J', 't', 'e', 'm', 'p'}
+		main_sdr_add(0x20, 0x0001, 0x51, 1, 0x31, 0x20, 0, 1,
+			3, 1, 0x67, 0x88, 1, 1, 0xC00F,
+			0xC07F, 0x3838, 0, 1, 0, 0,
+			1, 0, 0, 0, 0, 0, 3, 0x60,
+			0xB0, 0, 0xB0, 0, 0xA0, 0x90, 0x66, 0,
+			0, 0, 0, 0, 0, 0, 0, 0xC6,
+			sensor_name1)
+
+		// sensor 2 - voltage
+		sensor_add(0x20, 0, 2, 2, 1)
+		sensor_name2 := []uint8{'M', 'X', 'v', 'o', 'l', 't', 'a', 'g', 'e'}
+		main_sdr_add(0x20, 0x0002, 0x51, 1, 0x34, 0x20, 0, 2,
+			3, 1, 0x67, 0x88, 2, 1, 0xC00F,
+			0xC07F, 0x3838, 0, 4, 0, 0,
+			1, 0, 0, 0, 0, 0, 3, 0,
+			0, 0x0D, 0x10, 0x0C, 0x0F, 0x0E, 0x0D, 0,
+			0, 0, 0, 0, 0, 0, 0, 0xC9,
+			sensor_name2)
+
+		// sensor 3 - current
+		sensor_add(0x20, 0, 3, 3, 1)
+		sensor_name3 := []uint8{'M', 'X', 'c', 'u', 'r', 'r', 'e', 'n', 't'}
+		main_sdr_add(0x20, 0x0003, 0x51, 1, 0x34, 0x20, 0, 3,
+			3, 1, 0x67, 0x88, 3, 1, 0xC00F,
+			0xC07F, 0x3838, 0, 5, 0, 0,
+			1, 0, 0, 0, 0, 0, 3, 0,
+			0, 3, 6, 5, 7, 6, 5, 0,
+			0, 0, 0, 0, 0, 0, 0, 0xC9,
+			sensor_name3)
+
+		// sensor 4 - fan
+		sensor_add(0x20, 0, 4, 4, 1)
+		sensor_name4 := []uint8{'F', 'X', 'f', 'a', 'n', 'r', 'e', 'a', 'd'}
+		main_sdr_add(0x20, 0x0004, 0x51, 1, 0x34, 0x20, 0, 4,
+			3, 1, 0x67, 0x88, 4, 1, 0xC00F,
+			0xC07F, 0x3838, 4, 0x12, 0x0A, 0,
+			1, 0, 0, 0, 0, 0, 3, 0,
+			0, 0x28, 0x50, 0x32, 0x46, 0x3C, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0xC9,
+			sensor_name4)
+	}
+
 }
 
 func sensor_add(bmc uint8, lun uint8, num uint8, stype uint8, code uint8) {

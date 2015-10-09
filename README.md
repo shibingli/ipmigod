@@ -20,17 +20,27 @@ Architecture Notes:
 	- sensors and their sdrs (since the switch hw config will be fixed)
   In ipmi_sim, these parameters are specified in lan.conf and .emu files
 - Whenever possible use bmc-originated events to a remote controller
-  to avoid a polling regimen. This will aid keeping remote controller
-  load to a minimum in the context of large data-centers with many switches.
-  This is the so-called push scheme. Of course, with the support of IPMI
-  protocol, remote controllers can pull switch data at any time.
+  to avoid a polling regimen. This will aid in keeping remote controller
+  and network load to a minimum in the context of large data-centers with 
+  many switches. This is the so-called push scheme. Of course, with the 
+  support of IPMI protocol, remote controllers can pull switch data at any time.
 
-Todo:
-- Simulation vs real-target flags
+Todo (in priority order):
 - Sensor polling support from target sysclass fs
-- Straight authentication functionality
+- Logging support (SEL) - can we replace with remote syslog ?
 - LAN alerts via PET ? snmpd ?
-- ASF ping support [done]
-- Persistence support
 - Other functions required for white box switch eg cold-reset,
   warm-reset, manufacturing-test
+- Internal syslog support (package log/syslog integration)
+- Add timestamp support for sdrs
+- Persistence support? (at the least some historical record of readings)
+  (this is not part of IPMI so this could be displayed via http)
+- Straight authentication functionality? IPMI also offers MD2 and MD5
+  but both of these are not considered secure. It is debatable whether
+  straight password offers any better security for IPMI sessions. It
+  is probably best to ensure security by physical access means i.e
+  make sure ipmi lan segments are not exposed outside of trusted networks.
+- Daemonize ipmigod with double-fork (should be in goes) [done]
+- Simulation vs real-target flags [done]
+- ASF ping support [done]
+- Implement other functions ? (chassis set etc)

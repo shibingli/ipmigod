@@ -169,8 +169,20 @@ func get_sensor_reading(msg *msg_t) {
 	sensor := mc.sensors[msg.rmcp.message.rs_lun][sens_num]
 
 	data[0] = 0
-	data[1] = uint8(rand.Int()&0xf) + 20
-	//data[1] = sensor.value
+	if simulate {
+		switch sens_num {
+		case 1:
+			data[1] = uint8(rand.Int()&0xf) + 20
+		case 2:
+			data[1] = uint8(rand.Int() & 0xf)
+		case 3:
+			data[1] = uint8(rand.Int() & 0x7)
+		case 4:
+			data[1] = uint8(rand.Int() & 0x3f)
+		}
+	} else {
+		data[1] = sensor.value
+	}
 	var sens_en uint8
 	if sensor.events_enabled {
 		sens_en = 1
