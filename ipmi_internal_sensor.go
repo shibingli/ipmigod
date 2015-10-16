@@ -11,166 +11,166 @@ import (
 	"math/rand"
 )
 
-type sensor_t struct {
-	num              uint8
-	lun              uint8
-	scanning_enabled bool
-	events_enabled   bool
-	enabled          bool
-	mc               uint8
+type sensorT struct {
+	num             uint8
+	lun             uint8
+	scanningEnabled bool
+	eventsEnabled   bool
+	enabled         bool
+	mc              uint8
 
-	sensor_type        uint8
-	event_reading_code uint8
+	sensorType       uint8
+	eventReadingCode uint8
 
 	value uint8
 
-	hysteresis_support  uint8
-	positive_hysteresis uint8
-	negative_hysteresis uint8
+	hysteresisSupport  uint8
+	positiveHysteresis uint8
+	negativeHysteresis uint8
 
-	threshold_support   uint8
-	threshold_supported uint16
-	thresholds          [6]uint8
+	thresholdSupport   uint8
+	thresholdSupported uint16
+	thresholds         [6]uint8
 
-	event_support uint8
+	eventSupport uint8
 	// 0 for assertion, 1 for deassertion.
-	event_supported [2]uint16
-	event_enabled   [2]uint16
+	eventSupported [2]uint16
+	eventEnabled   [2]uint16
 
 	// Current bit values
-	event_status uint16
+	eventStatus uint16
 }
 
-func set_event_receiver(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func setEventReceiver(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_event_receiver(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getEventReceiver(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func platform_event(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func platformEvent(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_pef_capabilities(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getPefCapabilities(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func arm_pef_postpone_timer(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func armPefPostponeTimer(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func set_pef_config_parms(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func setPefConfigParms(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_pef_config_parms(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getPefConfigParms(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func set_last_processed_event_id(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func setLastProcessedEventId(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_last_processed_event_id(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getLastProcessedEventId(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func alert_immediate(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func alertImmediate(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func pet_acknowledge(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func petAcknowledge(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_device_sdr_info(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getDeviceSdrInfo(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_device_sdr(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getDeviceSdr(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func reserve_device_sdr_repository(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func reserveDeviceSdrRepository(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_sensor_reading_factors(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getSensorReadingFactors(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func set_sensor_hysteresis(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func setSensorHysteresis(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_sensor_hysteresis(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getSensorHysteresis(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func set_sensor_threshold(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func setSensorThreshold(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_sensor_threshold(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getSensorThreshold(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func set_sensor_event_enable(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func setSensorEventEnable(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_sensor_event_enable(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getSensorEventEnable(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func rearm_sensor_events(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func rearmSensorEvents(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_sensor_event_status(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getSensorEventStatus(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_sensor_reading(msg *msg_t) {
+func getSensorReading(msg *msgT) {
 
 	var data [5]uint8
 
-	sens_num := msg.data[msg.data_start]
-	if mc.sensors[msg.rmcp.message.rs_lun][sens_num] == nil {
-		msg.return_err(nil, 0x81)
+	sensNum := msg.data[msg.dataStart]
+	if mc.sensors[msg.rmcp.message.rsLun][sensNum] == nil {
+		msg.returnErr(nil, 0x81)
 		return
 	}
 
-	sensor := mc.sensors[msg.rmcp.message.rs_lun][sens_num]
+	sensor := mc.sensors[msg.rmcp.message.rsLun][sensNum]
 
 	data[0] = 0
 	if simulate {
-		switch sens_num {
+		switch sensNum {
 		case 1:
 			data[1] = uint8(rand.Int()&0xf) + 20
 		case 2:
@@ -183,30 +183,30 @@ func get_sensor_reading(msg *msg_t) {
 	} else {
 		data[1] = sensor.value
 	}
-	var sens_en uint8
-	if sensor.events_enabled {
-		sens_en = 1
+	var sensEn uint8
+	if sensor.eventsEnabled {
+		sensEn = 1
 	} else {
-		sens_en = 0
+		sensEn = 0
 	}
-	var scan_en uint8
-	if sensor.scanning_enabled && sensor.enabled {
-		scan_en = 1
+	var scanEn uint8
+	if sensor.scanningEnabled && sensor.enabled {
+		scanEn = 1
 	} else {
-		scan_en = 0
+		scanEn = 0
 	}
-	data[2] = (sens_en << 7) | (scan_en << 6)
-	binary.LittleEndian.PutUint16(data[3:5], sensor.event_status)
+	data[2] = (sensEn << 7) | (scanEn << 6)
+	binary.LittleEndian.PutUint16(data[3:5], sensor.eventStatus)
 
-	msg.return_rsp_data(nil, data[0:5], 5)
+	msg.returnRspData(nil, data[0:5], 5)
 }
 
-func set_sensor_type(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func setSensorType(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func get_sensor_type(msg *msg_t) {
-	fmt.Println("sensor_event_netfn not supported",
+func getSensorType(msg *msgT) {
+	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
 }

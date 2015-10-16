@@ -5,79 +5,79 @@
 // Package contains IPMI 2.0 spec protocol definitions
 package ipmigod
 
-func get_bridge_state(msg *msg_t) {
+func getBridgeState(msg *msgT) {
 }
 
-func set_bridge_state(msg *msg_t) {
+func setBridgeState(msg *msgT) {
 }
 
-func get_icmb_address(msg *msg_t) {
+func getIcmbAddress(msg *msgT) {
 }
 
-func set_icmb_address(msg *msg_t) {
+func setIcmbAddress(msg *msgT) {
 }
 
-func set_bridge_proxy_address(msg *msg_t) {
+func setBridgeProxyAddress(msg *msgT) {
 }
 
-func get_bridge_statistics(msg *msg_t) {
+func getBridgeStatistics(msg *msgT) {
 }
 
-func get_icmb_capabilities(msg *msg_t) {
+func getIcmbCapabilities(msg *msgT) {
 }
 
-func clear_bridge_statistics(msg *msg_t) {
+func clearBridgeStatistics(msg *msgT) {
 }
 
-func get_bridge_proxy_address(msg *msg_t) {
+func getBridgeProxyAddress(msg *msgT) {
 }
 
-func get_icmb_connector_info(msg *msg_t) {
+func getIcmbConnectorInfo(msg *msgT) {
 }
 
-func set_icmb_connector_info(msg *msg_t) {
+func setIcmbConnectorInfo(msg *msgT) {
 }
 
-func send_icmb_connection_id(msg *msg_t) {
+func sendIcmbConnectionId(msg *msgT) {
 }
-func prepare_for_discovery(msg *msg_t) {
-}
-
-func get_addresses(msg *msg_t) {
+func prepareForDiscovery(msg *msgT) {
 }
 
-func set_discovered(msg *msg_t) {
+func getAddresses(msg *msgT) {
 }
 
-func get_chassis_device_id(msg *msg_t) {
+func setDiscovered(msg *msgT) {
 }
 
-func set_chassis_device_id(msg *msg_t) {
+func getChassisDeviceId(msg *msgT) {
 }
 
-func bridge_request(msg *msg_t) {
+func setChassisDeviceId(msg *msgT) {
 }
 
-func bridge_message(msg *msg_t) {
+func bridgeRequest(msg *msgT) {
 }
 
-func get_event_count(msg *msg_t) {
+func bridgeMessage(msg *msgT) {
 }
 
-func set_event_destination(msg *msg_t) {
+func getEventCount(msg *msgT) {
 }
 
-func set_event_reception_state(msg *msg_t) {
+func setEventDestination(msg *msgT) {
 }
 
-func send_icmb_event_message(msg *msg_t) {
+func setEventReceptionState(msg *msgT) {
 }
 
-func get_event_destination(msg *msg_t) {
+func sendIcmbEventMessage(msg *msgT) {
 }
 
-func get_event_reception_state(msg *msg_t) {
+func getEventDestination(msg *msgT) {
 }
 
-func error_report(msg *msg_t) {
+func getEventReceptionState(msg *msgT) {
+}
+
+func errorReport(msg *msgT) {
 }

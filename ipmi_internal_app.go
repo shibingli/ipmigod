@@ -16,79 +16,79 @@ const (
 	USER_MASK     = 0x3f
 )
 
-func get_device_id(msg *msg_t) {
+func getDeviceId(msg *msgT) {
 }
 
-func cold_reset(msg *msg_t) {
+func coldReset(msg *msgT) {
 }
 
-func warm_reset(msg *msg_t) {
+func warmReset(msg *msgT) {
 }
 
-func get_self_test_results(msg *msg_t) {
+func getSelfTestResults(msg *msgT) {
 }
 
-func manufacturing_test_on(msg *msg_t) {
+func manufacturingTestOn(msg *msgT) {
 }
 
-func set_acpi_power_state(msg *msg_t) {
+func setAcpiPowerState(msg *msgT) {
 }
 
-func get_acpi_power_state(msg *msg_t) {
+func getAcpiPowerState(msg *msgT) {
 }
 
-func get_device_guid(msg *msg_t) {
+func getDeviceGuid(msg *msgT) {
 }
 
-func reset_watchdog_timer(msg *msg_t) {
+func resetWatchdogTimer(msg *msgT) {
 }
 
-func set_watchdog_timer(msg *msg_t) {
+func setWatchdogTimer(msg *msgT) {
 }
 
-func get_watchdog_timer(msg *msg_t) {
+func getWatchdogTimer(msg *msgT) {
 }
 
-func set_bmc_global_enables(msg *msg_t) {
+func setBmcGlobalEnables(msg *msgT) {
 }
 
-func get_bmc_global_enables(msg *msg_t) {
+func getBmcGlobalEnables(msg *msgT) {
 }
 
-func clear_msg_flags(msg *msg_t) {
+func clearMsgFlags(msg *msgT) {
 }
 
-func get_msg_flags_cmd(msg *msg_t) {
+func getMsgFlagsCmd(msg *msgT) {
 }
 
-func enable_message_channel_rcv(msg *msg_t) {
+func enableMessageChannelRcv(msg *msgT) {
 }
 
-func get_msg(msg *msg_t) {
+func getMsg(msg *msgT) {
 }
 
-func send_msg(msg *msg_t) {
+func sendMsg(msg *msgT) {
 }
 
-func read_event_msg_buffer(msg *msg_t) {
+func readEventMsgBuffer(msg *msgT) {
 }
 
-func get_bt_interface_capabilties(msg *msg_t) {
+func getBtInterfaceCapabilties(msg *msgT) {
 }
 
-func get_system_guid(msg *msg_t) {
+func getSystemGuid(msg *msgT) {
 	// no session only allowed with authtype_none
 	if msg.rmcp.session.sid == 0 {
-		if msg.rmcp.session.auth_type != IPMI_AUTHTYPE_NONE {
-			fmt.Println("system_guid - no session with authtype",
-				msg.rmcp.session.auth_type)
+		if msg.rmcp.session.authType != IPMI_AUTHTYPE_NONE {
+			fmt.Println("systemGuid - no session with authtype",
+				msg.rmcp.session.authType)
 			return
 		}
 	}
 
 }
 
-func get_channel_auth_capabilties(msg *msg_t) {
+func getChannelAuthCapabilties(msg *msgT) {
 	var data [9]uint8
 
 	if debug {
@@ -97,33 +97,33 @@ func get_channel_auth_capabilties(msg *msg_t) {
 	// no session only allowed with authtype_none
 	if msg.rmcp.session.sid == 0 {
 
-		if msg.rmcp.session.auth_type != IPMI_AUTHTYPE_NONE {
-			fmt.Println("system_guid - no session with authtype",
-				msg.rmcp.session.auth_type)
+		if msg.rmcp.session.authType != IPMI_AUTHTYPE_NONE {
+			fmt.Println("systemGuid - no session with authtype",
+				msg.rmcp.session.authType)
 			return
 		}
 	}
 
-	data_start := msg.data_start
-	do_rmcpp := (msg.data[data_start] >> 7) & 1
+	dataStart := msg.dataStart
+	do_rmcpp := (msg.data[dataStart] >> 7) & 1
 	if do_rmcpp > 0 {
 		fmt.Println("get chan auth caps: rmcpp requested")
 		return
 	}
 
-	channel := msg.data[data_start] & 0xf
-	priv := msg.data[msg.data_start+1] & 0xf
+	channel := msg.data[dataStart] & 0xf
+	priv := msg.data[msg.dataStart+1] & 0xf
 	if channel == 0xe { // means use "this channel"
-		channel = lanserv.chan_num
+		channel = lanserv.chanNum
 	}
-	if channel != lanserv.chan_num {
+	if channel != lanserv.chanNum {
 		fmt.Println("get chan auth caps: chan mismatch ", channel,
-			lanserv.chan_num)
-		msg.return_err(nil, IPMI_INVALID_DATA_FIELD_CC)
-	} else if priv > lanserv.chan_priv_limit {
+			lanserv.chanNum)
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
+	} else if priv > lanserv.chanPrivLimit {
 		fmt.Println("get chan auth caps: priv problem ", priv,
-			lanserv.chan_num)
-		msg.return_err(nil, IPMI_INVALID_DATA_FIELD_CC)
+			lanserv.chanNum)
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
 	} else {
 		data[0] = 0
 		data[1] = channel
@@ -138,12 +138,12 @@ func get_channel_auth_capabilties(msg *msg_t) {
 		data[6] = 0
 		data[7] = 0
 		data[8] = 0
-		msg.return_rsp_data(nil, data[0:9], 9)
+		msg.returnRspData(nil, data[0:9], 9)
 	}
 
 }
 
-func is_authval_null(authval []uint8) bool {
+func isAuthvalNull(authval []uint8) bool {
 	for i := 0; i < 16; i++ {
 		if authval[i] != 0 {
 			return false
@@ -152,9 +152,9 @@ func is_authval_null(authval []uint8) bool {
 	return true
 }
 
-func get_session_challenge(msg *msg_t) {
+func getSessionChallenge(msg *msgT) {
 	var (
-		user *user_t
+		user *userT
 		data [21]uint8
 		sid  uint32
 	)
@@ -162,43 +162,43 @@ func get_session_challenge(msg *msg_t) {
 	// no-session only allowed with authtype_none
 	if msg.rmcp.session.sid == 0 {
 
-		if msg.rmcp.session.auth_type != IPMI_AUTHTYPE_NONE {
-			fmt.Println("system_guid - no session with authtype",
-				msg.rmcp.session.auth_type)
+		if msg.rmcp.session.authType != IPMI_AUTHTYPE_NONE {
+			fmt.Println("systemGuid - no session with authtype",
+				msg.rmcp.session.authType)
 			return
 		}
 	}
 
-	data_start := msg.data_start
-	authtype := msg.data[data_start] & 0xf
-	user = find_user(msg.data[data_start+1:data_start+17], true, authtype)
+	dataStart := msg.dataStart
+	authtype := msg.data[dataStart] & 0xf
+	user = findUser(msg.data[dataStart+1:dataStart+17], true, authtype)
 	if user == nil {
-		if is_authval_null(msg.data[data_start+1 : data_start+17]) {
-			msg.return_err(nil, 0x82) // no null user
+		if isAuthvalNull(msg.data[dataStart+1 : dataStart+17]) {
+			msg.returnErr(nil, 0x82) // no null user
 		} else {
-			msg.return_err(nil, 0x81) // no user
+			msg.returnErr(nil, 0x81) // no user
 		}
 		return
 	}
 
-	if (user.allowed_auths & (1 << authtype)) == 0 {
+	if (user.allowedAuths & (1 << authtype)) == 0 {
 		fmt.Println("Session challenge failed: Invalid auth type",
 			authtype)
-		msg.return_err(nil, IPMI_INVALID_DATA_FIELD_CC)
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
 		return
 	}
 
-	if lanserv.active_sessions >= MAX_SESSIONS {
+	if lanserv.activeSessions >= MAX_SESSIONS {
 		fmt.Println("Session challenge failed: Too many open sessions")
-		msg.return_err(nil, IPMI_OUT_OF_SPACE_CC)
+		msg.returnErr(nil, IPMI_OUT_OF_SPACE_CC)
 		return
 	}
 
 	data[0] = 0
 
-	sid = (lanserv.next_chall_seq << (USER_BITS_REQ + 1)) |
+	sid = (lanserv.nextChallSeq << (USER_BITS_REQ + 1)) |
 		(uint32(user.idx) << 1) | 1
-	lanserv.next_chall_seq++
+	lanserv.nextChallSeq++
 	if debug {
 		fmt.Printf("Temp-session-id: %x\n", sid)
 	}
@@ -208,15 +208,15 @@ func get_session_challenge(msg *msg_t) {
 	}
 
 	//rv = gen_challenge(lan, data+5, sid)
-	test_chall := []uint8{0x00, 0x01, 0x02, 0x03,
+	testChall := []uint8{0x00, 0x01, 0x02, 0x03,
 		0x04, 0x05, 0x06, 0x07,
 		0x08, 0x09, 0x0a, 0x0b,
 		0x0c, 0x0d, 0x0e, 0x0f}
-	copy(data[5:], test_chall[0:])
-	msg.return_rsp_data(nil, data[0:21], 21)
+	copy(data[5:], testChall[0:])
+	msg.returnRspData(nil, data[0:21], 21)
 }
 
-func find_free_session() *session_t {
+func findFreeSession() *sessionT {
 
 	// Find a free session. Session 0 is invalid.
 	for i := 1; i <= MAX_SESSIONS; i++ {
@@ -228,13 +228,13 @@ func find_free_session() *session_t {
 }
 
 // TODO: authcode support
-func activate_session(msg *msg_t) {
+func activateSession(msg *msgT) {
 	var (
 		data    [11]uint8
-		session *session_t
+		session *sessionT
 	)
 
-	if msg.data_len < 22 {
+	if msg.dataLen < 22 {
 		fmt.Println("Activate session fail: message too short")
 		return
 	}
@@ -242,67 +242,67 @@ func activate_session(msg *msg_t) {
 	// Handle temporary session case (i.e. no session established yet)
 	if msg.rmcp.session.sid&1 == 1 {
 
-		var dummy_session session_t
-		data_start := msg.data_start
+		var dummySession sessionT
+		dataStart := msg.dataStart
 
 		// check_challenge() - not for now!
 
 		// establish new session under lan struct and calc new sid
-		user_idx := (msg.sid >> 1) & USER_MASK
-		if (user_idx > MAX_USERS) || (user_idx == 0) {
+		userIdx := (msg.sid >> 1) & USER_MASK
+		if (userIdx > MAX_USERS) || (userIdx == 0) {
 			fmt.Println("Activate session invalid sid",
 				msg.sid)
 			return
 		}
 
-		auth := msg.data[data_start] & 0xf
-		user := &(lanserv.users[user_idx])
+		auth := msg.data[dataStart] & 0xf
+		user := &(lanserv.users[userIdx])
 		if !user.valid {
-			fmt.Println("Activate session invalid ui ", user_idx)
+			fmt.Println("Activate session invalid ui ", userIdx)
 			return
 		}
-		if (user.allowed_auths & (1 << auth)) == 0 {
+		if (user.allowedAuths & (1 << auth)) == 0 {
 			fmt.Println("Activate session invalid auth for user ",
-				auth, user_idx)
+				auth, userIdx)
 			return
 		}
-		if (user.allowed_auths & (1 << msg.authtype)) == 0 {
+		if (user.allowedAuths & (1 << msg.authtype)) == 0 {
 			fmt.Println("Activate session invalid msg auth user ",
-				msg.authtype, user_idx)
+				msg.authtype, userIdx)
 			return
 		}
 
-		if lanserv.active_sessions >= MAX_SESSIONS {
+		if lanserv.activeSessions >= MAX_SESSIONS {
 			fmt.Println("Activate session fail:  Too many open!")
 			return
 		}
 
-		xmit_seq :=
-			binary.LittleEndian.Uint32(msg.data[data_start+18 : data_start+22])
+		xmitSeq :=
+			binary.LittleEndian.Uint32(msg.data[dataStart+18 : dataStart+22])
 
-		dummy_session.active = true
-		dummy_session.authtype = msg.authtype
-		dummy_session.xmit_seq = xmit_seq
-		dummy_session.sid = msg.sid
+		dummySession.active = true
+		dummySession.authtype = msg.authtype
+		dummySession.xmitSeq = xmitSeq
+		dummySession.sid = msg.sid
 
-		if xmit_seq == 0 {
-			fmt.Println("Activate session fail:  xmit_seq 0")
-			msg.return_err(&dummy_session, 0x85) // Invalid xmitseq
+		if xmitSeq == 0 {
+			fmt.Println("Activate session fail:  xmitSeq 0")
+			msg.returnErr(&dummySession, 0x85) // Invalid xmitseq
 			return
 		}
 
-		max_priv := msg.data[data_start+1] & 0xf
-		if (user.privilege == 0xf) || (max_priv > user.max_priv) {
+		maxPriv := msg.data[dataStart+1] & 0xf
+		if (user.privilege == 0xf) || (maxPriv > user.maxPriv) {
 			fmt.Println("Activate session fail: priv mismatch",
-				max_priv, user.max_priv)
-			msg.return_err(&dummy_session, 0x86) //Priv err
+				maxPriv, user.maxPriv)
+			msg.returnErr(&dummySession, 0x86) //Priv err
 			return
 		}
 
-		session = find_free_session()
+		session = findFreeSession()
 		if session == nil {
 			fmt.Println("Activate session fail: no free sessions")
-			msg.return_err(&dummy_session, 0x81) // No session slot
+			msg.returnErr(&dummySession, 0x81) // No session slot
 			return
 		}
 
@@ -311,45 +311,45 @@ func activate_session(msg *msg_t) {
 		session.authtype = auth
 
 		r := rand.New(rand.NewSource(99))
-		seq_data := r.Uint32()
-		session.recv_seq = seq_data & 0xFFFFFFFE
-		if session.recv_seq == 0 {
-			session.recv_seq = 2
+		seqData := r.Uint32()
+		session.recvSeq = seqData & 0xFFFFFFFE
+		if session.recvSeq == 0 {
+			session.recvSeq = 2
 		}
-		session.xmit_seq = xmit_seq
-		session.max_priv = max_priv
+		session.xmitSeq = xmitSeq
+		session.maxPriv = maxPriv
 		session.priv = IPMI_PRIVILEGE_USER // Start at user privilege
 		session.userid = user.idx
-		session.time_left = lanserv.default_session_timeout
+		session.timeLeft = lanserv.defaultSessionTimeout
 
-		lanserv.active_sessions++
+		lanserv.activeSessions++
 		if debug {
 			fmt.Printf("Activate session: Session opened\n")
-			fmt.Printf("0x%x, max priv %d\n", user_idx, max_priv)
+			fmt.Printf("0x%x, max priv %d\n", userIdx, maxPriv)
 		}
 
-		if lanserv.sid_seq == 0 {
-			lanserv.sid_seq++
+		if lanserv.sidSeq == 0 {
+			lanserv.sidSeq++
 		}
 		session.sid =
-			uint32((lanserv.sid_seq << (SESSION_BITS_REQ + 1)) |
+			uint32((lanserv.sidSeq << (SESSION_BITS_REQ + 1)) |
 				(session.handle << 1))
-		lanserv.sid_seq++
+		lanserv.sidSeq++
 
 		// Build response and send back
 		data[0] = 0
 		data[1] = session.authtype
 
 		binary.LittleEndian.PutUint32(data[2:6], session.sid)
-		binary.LittleEndian.PutUint32(data[6:10], session.recv_seq)
+		binary.LittleEndian.PutUint32(data[6:10], session.recvSeq)
 
-		data[10] = session.max_priv
+		data[10] = session.maxPriv
 
-		msg.return_rsp_data(&dummy_session, data[0:11], 11)
+		msg.returnRspData(&dummySession, data[0:11], 11)
 
 	} else {
 		// actiavate_session msg while already in a session
-		session = sid_to_session(msg.sid)
+		session = sidToSession(msg.sid)
 		if session == nil {
 			fmt.Printf("Activate session - no session %x\n",
 				msg.sid)
@@ -358,42 +358,42 @@ func activate_session(msg *msg_t) {
 
 		// We are already connected, we ignore everything
 		// but the outbound sequence number.
-		session.xmit_seq = binary.LittleEndian.Uint32(msg.data[18:22])
+		session.xmitSeq = binary.LittleEndian.Uint32(msg.data[18:22])
 
 		// Build response and send back
 		data[0] = 0
 		data[1] = session.authtype
 
 		binary.LittleEndian.PutUint32(data[2:6], session.sid)
-		binary.LittleEndian.PutUint32(data[6:10], session.recv_seq)
+		binary.LittleEndian.PutUint32(data[6:10], session.recvSeq)
 
-		data[10] = session.max_priv
+		data[10] = session.maxPriv
 
-		msg.return_rsp_data(session, data[0:11], 11)
+		msg.returnRspData(session, data[0:11], 11)
 
 	}
 	fmt.Printf("\nSession %d activated\n", session.handle)
 }
 
-func set_session_privilege(msg *msg_t) {
+func setSessionPrivilege(msg *msgT) {
 	var (
 		data [2]uint8
 		priv uint8
 	)
 
-	if msg.data_len < 1 {
-		fmt.Printf("Set session priv msg too short %d\n", msg.data_len)
-		msg.return_err(nil, IPMI_REQUEST_DATA_LENGTH_INVALID_CC)
+	if msg.dataLen < 1 {
+		fmt.Printf("Set session priv msg too short %d\n", msg.dataLen)
+		msg.returnErr(nil, IPMI_REQUEST_DATA_LENGTH_INVALID_CC)
 		return
 	}
 
-	session := sid_to_session(msg.sid)
+	session := sidToSession(msg.sid)
 	if session == nil {
 		fmt.Printf("Set session priv - no session %x\n", msg.sid)
 		return
 	}
 
-	priv = msg.data[msg.data_start] & 0xf
+	priv = msg.data[msg.dataStart] & 0xf
 
 	if priv == 0 {
 		priv = session.priv
@@ -401,12 +401,12 @@ func set_session_privilege(msg *msg_t) {
 
 	if priv == IPMI_PRIVILEGE_CALLBACK {
 		fmt.Println("Set session priv - can't drop below user priv")
-		msg.return_err(session, 0x80) // Can't drop below user priv
+		msg.returnErr(session, 0x80) // Can't drop below user priv
 		return
 	}
 
-	if priv > session.max_priv {
-		msg.return_err(session, 0x81) // Can't set priv this high
+	if priv > session.maxPriv {
+		msg.returnErr(session, 0x81) // Can't set priv this high
 		return
 	}
 
@@ -415,153 +415,153 @@ func set_session_privilege(msg *msg_t) {
 	data[0] = 0
 	data[1] = priv
 
-	msg.return_rsp_data(session, data[0:2], 2)
+	msg.returnRspData(session, data[0:2], 2)
 }
 
-func close_session(msg *msg_t) {
+func closeSession(msg *msgT) {
 
-	session := sid_to_session(msg.sid)
+	session := sidToSession(msg.sid)
 	var sid uint32
-	target_sess := session
+	targetSess := session
 
-	if msg.data_len < 4 {
+	if msg.dataLen < 4 {
 		fmt.Printf("Close session failure: message too short %d\n",
-			msg.data_len)
-		msg.return_err(session, IPMI_REQUEST_DATA_LENGTH_INVALID_CC)
+			msg.dataLen)
+		msg.returnErr(session, IPMI_REQUEST_DATA_LENGTH_INVALID_CC)
 		return
 	}
 
-	data_start := msg.data_start
-	sid = binary.LittleEndian.Uint32(msg.data[data_start : data_start+4])
+	dataStart := msg.dataStart
+	sid = binary.LittleEndian.Uint32(msg.data[dataStart : dataStart+4])
 	if sid != session.sid {
 		// Close session from another session
 		if session.priv != IPMI_PRIVILEGE_ADMIN {
 			// Only admins can close other people's sessions.
 			fmt.Println("Session mismatch on close session")
-			msg.return_err(session,
+			msg.returnErr(session,
 				IPMI_INSUFFICIENT_PRIVILEGE_CC)
 			return
 		}
-		target_sess = sid_to_session(sid)
-		if target_sess == nil {
-			msg.return_err(session, 0x87) /* session not found */
+		targetSess = sidToSession(sid)
+		if targetSess == nil {
+			msg.returnErr(session, 0x87) /* session not found */
 			return
 		}
 	}
 
 	fmt.Printf("Session %d closed: Closed due to request\n",
-		target_sess.handle)
+		targetSess.handle)
 
 	// Send ack on originating session
-	msg.return_err(session, 0)
+	msg.returnErr(session, 0)
 
 	// Cleanup the target session (which could be the same or not)
-	target_sess.active = false
-	lanserv.active_sessions--
+	targetSess.active = false
+	lanserv.activeSessions--
 
 }
 
-func get_session_info(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getSessionInfo(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_authcode(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getAuthcode(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func set_channel_access(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func setChannelAccess(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_channel_access(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getChannelAccess(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_channel_info(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getChannelInfo(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func set_user_access(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func setUserAccess(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_user_access(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getUserAccess(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func set_user_name(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func setUserName(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_user_name(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getUserName(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func set_user_password(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func setUserPassword(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func activate_payload(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func activatePayload(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func deavtivate_payload(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func deavtivatePayload(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_payload_activation_status(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getPayloadActivationStatus(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_payload_instance_info(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getPayloadInstanceInfo(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func set_user_payload_access(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func setUserPayloadAccess(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_user_payload_access(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getUserPayloadAccess(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_channel_payload_support(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getChannelPayloadSupport(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_channel_payload_version(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getChannelPayloadVersion(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_channel_oem_payload_info(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getChannelOemPayloadInfo(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func master_read_write(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func masterReadWrite(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_channel_cipher_suites(msg *msg_t) {
+func getChannelCipherSuites(msg *msgT) {
 	// no session only allowed with authtype_none
 	if msg.rmcp.session.sid == 0 {
 
-		if msg.rmcp.session.auth_type != IPMI_AUTHTYPE_NONE {
+		if msg.rmcp.session.authType != IPMI_AUTHTYPE_NONE {
 			fmt.Println("system_guid - no session with authtype",
-				msg.rmcp.session.auth_type)
+				msg.rmcp.session.authType)
 			return
 		}
 	}
 
 }
 
-func suspend_resume_payload_encryption(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func suspendResumePayloadEncryption(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func set_channel_security_key(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func setChannelSecurityKey(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }
 
-func get_system_interface_capabilities(msg *msg_t) {
-	fmt.Println("app_netfn not supported", msg.rmcp.message.cmd)
+func getSystemInterfaceCapabilities(msg *msgT) {
+	fmt.Println("appNetfn not supported", msg.rmcp.message.cmd)
 }

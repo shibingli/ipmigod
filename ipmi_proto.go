@@ -17,7 +17,7 @@ const (
 	MAX_MSG_RETURN_DATA = 1000
 )
 
-func ipmi_lan_init() {
+func ipmiLanInit() {
 
 	// Initialize user database for straight authentication
 	lanserv.users[1].idx = 1
@@ -25,8 +25,8 @@ func ipmi_lan_init() {
 	copy(lanserv.users[1].username[0:], "")
 	lanserv.users[1].pw = make([]uint8, 16)
 	copy(lanserv.users[1].pw[0:], "test")
-	lanserv.users[1].max_priv = IPMI_PRIVILEGE_USER
-	lanserv.users[1].allowed_auths = (1 << IPMI_AUTHTYPE_NONE) |
+	lanserv.users[1].maxPriv = IPMI_PRIVILEGE_USER
+	lanserv.users[1].allowedAuths = (1 << IPMI_AUTHTYPE_NONE) |
 		//(1 << AUTHTYPE_MD2) |
 		//(1 << AUTHTYPE_MD5) |
 		(1 << IPMI_AUTHTYPE_STRAIGHT)
@@ -36,27 +36,27 @@ func ipmi_lan_init() {
 	copy(lanserv.users[2].username[0:], "ipmiusr")
 	lanserv.users[2].pw = make([]uint8, 16)
 	copy(lanserv.users[2].pw[0:], "test")
-	lanserv.users[2].max_priv = IPMI_PRIVILEGE_ADMIN
-	lanserv.users[2].allowed_auths = (1 << IPMI_AUTHTYPE_NONE) //|
+	lanserv.users[2].maxPriv = IPMI_PRIVILEGE_ADMIN
+	lanserv.users[2].allowedAuths = (1 << IPMI_AUTHTYPE_NONE) //|
 	//(1 << AUTHTYPE_MD2) |
 	//(1 << AUTHTYPE_MD5) |
 	//(1 << IPMI_AUTHTYPE_STRAIGHT)
 	lanserv.users[2].valid = true
 
-	lanserv.chan_num = 1
-	lanserv.default_session_timeout = 30
-	lanserv.sid_seq = 0
-	lanserv.next_chall_seq = 0
-	lanserv.chan_priv_limit = IPMI_PRIVILEGE_ADMIN
-	lanserv.chan_priv_allowed_auths[IPMI_PRIVILEGE_CALLBACK-1] =
+	lanserv.chanNum = 1
+	lanserv.defaultSessionTimeout = 30
+	lanserv.sidSeq = 0
+	lanserv.nextChallSeq = 0
+	lanserv.chanPrivLimit = IPMI_PRIVILEGE_ADMIN
+	lanserv.chanPrivAllowedAuths[IPMI_PRIVILEGE_CALLBACK-1] =
 		(1 << IPMI_AUTHTYPE_MD5)
-	lanserv.chan_priv_allowed_auths[IPMI_PRIVILEGE_USER-1] =
+	lanserv.chanPrivAllowedAuths[IPMI_PRIVILEGE_USER-1] =
 		(1 << IPMI_AUTHTYPE_NONE)
-	lanserv.chan_priv_allowed_auths[IPMI_PRIVILEGE_OPERATOR-1] =
+	lanserv.chanPrivAllowedAuths[IPMI_PRIVILEGE_OPERATOR-1] =
 		(1 << IPMI_AUTHTYPE_NONE)
-	lanserv.chan_priv_allowed_auths[IPMI_PRIVILEGE_ADMIN-1] =
+	lanserv.chanPrivAllowedAuths[IPMI_PRIVILEGE_ADMIN-1] =
 		(1 << IPMI_AUTHTYPE_STRAIGHT)
-	lanserv.chan_priv_allowed_auths[IPMI_PRIVILEGE_OEM-1] =
+	lanserv.chanPrivAllowedAuths[IPMI_PRIVILEGE_OEM-1] =
 		(1 << IPMI_AUTHTYPE_OEM)
 
 	for i := 1; i < MAX_SESSIONS+1; i++ {
@@ -75,7 +75,7 @@ func init() {
 	Usage.Set(name, `ipmigod [OPTIONS]...`)
 	CommandFlags.Set("ipmigod", []string{"-background"})
 	Command.Set(name, func(_ *Context, _ ...string) {
-		ipmigod_main()
+		ipmigodMain()
 	})
 
 	// daemon setup
@@ -91,61 +91,61 @@ func init() {
 	// allowed_auths_admin none md2 md5 straight
 	// guid a123456789abcdefa123456789abcdef
 	//  user 2 true  "ipmiusr" "test" admin    10 none md2 md5 straight
-	ipmi_lan_init()
+	ipmiLanInit()
 
 	// Initialize BMC SDRs/Sensors
-	bmc_init()
+	bmcInit()
 
 	// Initialize persistence database
 }
 
-func ipmigod_main() {
+func ipmigodMain() {
 
 	// Listen on UDP port 623 on all interfaces.
-	server_addr, err := net.ResolveUDPAddr("udp", ":623")
+	serverAddr, err := net.ResolveUDPAddr("udp", ":623")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Now listen at selected port
-	server_conn, err := net.ListenUDP("udp", server_addr)
+	serverConn, err := net.ListenUDP("udp", serverAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer server_conn.Close()
+	defer serverConn.Close()
 
 	for {
 
-		msg := new(msg_t)
-		n, remote_addr, err :=
-			server_conn.ReadFromUDP(msg.data[0:])
-		msg.remote_addr = remote_addr
+		msg := new(msgT)
+		n, remoteAddr, err :=
+			serverConn.ReadFromUDP(msg.data[0:])
+		msg.remoteAddr = remoteAddr
 		if debug {
 			fmt.Println("Received ", n, " bytes from ",
-				msg.remote_addr)
+				msg.remoteAddr)
 		}
 		if err != nil {
 			fmt.Println("Error: ", err)
 			fmt.Printf("Error: Received %d bytes\n", n)
 		}
-		msg.data_len = uint(n)
-		msg.conn = server_conn
-		msg.ipmi_handle_msg()
+		msg.dataLen = uint(n)
+		msg.conn = serverConn
+		msg.ipmiHandleMsg()
 	}
 }
 
-func (msg *msg_t) ipmi_handle_msg() {
+func (msg *msgT) ipmiHandleMsg() {
 
-	if msg.data_len < 5 {
+	if msg.dataLen < 5 {
 		fmt.Printf("LAN msg failure: message too short %d",
-			msg.data_len)
+			msg.dataLen)
 		return
 	}
-	msg.channel = lanserv.chan_num
+	msg.channel = lanserv.chanNum
 
 	// Parse incoming IPMI packet (including error checks)
 	// and load up msg struct
-	msg.ipmi_parse_msg()
+	msg.ipmiParseMsg()
 
 	if msg.authtype == IPMI_AUTHTYPE_RMCP_PLUS {
 		//ipmi_handle_rmcpp_msg(lan, &msg);
@@ -154,103 +154,103 @@ func (msg *msg_t) ipmi_handle_msg() {
 		if debug {
 			fmt.Println("Received RMCP message!")
 		}
-		(netfunc_processors[msg.rmcp.message.netfn])(msg)
+		(netfuncProcessors[msg.rmcp.message.netfn])(msg)
 	}
 }
 
-func (msg *msg_t) ipmi_parse_msg() {
-	data_start := msg.data_start
+func (msg *msgT) ipmiParseMsg() {
+	dataStart := msg.dataStart
 
-	if msg.data[data_start+3] == 6 {
+	if msg.data[dataStart+3] == 6 {
 		// Handle ASF ping message
-		asf_ping(msg)
-	} else if msg.data[data_start+3] == 7 {
+		asfPing(msg)
+	} else if msg.data[dataStart+3] == 7 {
 		// Peek ahead to see if we have an RMCP or RMCP+ message
-		if msg.data[data_start+4] == IPMI_AUTHTYPE_RMCP_PLUS {
+		if msg.data[dataStart+4] == IPMI_AUTHTYPE_RMCP_PLUS {
 			fmt.Println("LAN msg not supported RMCP+")
 			//ipmi_parse_rmcpp_msg(msg)
 		} else {
-			msg.ipmi_parse_rmcp_msg()
+			msg.ipmiParseRmcpMsg()
 		}
 	} else {
 		fmt.Println("LAN msg has unsupported class",
-			msg.data[data_start+3])
+			msg.data[dataStart+3])
 	}
 }
 
-func (msg *msg_t) ipmi_parse_rmcp_msg() {
-	data_start := msg.data_start
+func (msg *msgT) ipmiParseRmcpMsg() {
+	dataStart := msg.dataStart
 
 	// Load RMCP header
-	msg.rmcp.hdr.version = msg.data[data_start+0]
-	msg.rmcp.hdr.rmcp_seq = msg.data[data_start+2]
-	msg.rmcp.hdr.class = msg.data[data_start+3]
-	msg.data_start += 4
-	data_start = msg.data_start
+	msg.rmcp.hdr.version = msg.data[dataStart+0]
+	msg.rmcp.hdr.rmcpSeq = msg.data[dataStart+2]
+	msg.rmcp.hdr.class = msg.data[dataStart+3]
+	msg.dataStart += 4
+	dataStart = msg.dataStart
 
-	if msg.rmcp.hdr.rmcp_seq != 0xff {
+	if msg.rmcp.hdr.rmcpSeq != 0xff {
 		fmt.Println("LAN msg failure: seq not ff")
 		return /* Sequence # must be ff (no ack) */
 	}
 
 	// Load IPMI Session fields
-	msg.rmcp.session.auth_type = msg.data[data_start]
-	msg.authtype = msg.rmcp.session.auth_type
+	msg.rmcp.session.authType = msg.data[dataStart]
+	msg.authtype = msg.rmcp.session.authType
 	msg.rmcp.session.seq =
-		binary.LittleEndian.Uint32(msg.data[data_start+1 : data_start+5])
+		binary.LittleEndian.Uint32(msg.data[dataStart+1 : dataStart+5])
 	msg.rmcp.session.sid =
-		binary.LittleEndian.Uint32(msg.data[data_start+5 : data_start+9])
+		binary.LittleEndian.Uint32(msg.data[dataStart+5 : dataStart+9])
 	if debug {
 		fmt.Printf("Session_id from freeipmi: %x\n",
 			msg.rmcp.session.sid)
 	}
 	msg.sid = msg.rmcp.session.sid
-	if msg.rmcp.session.auth_type != IPMI_AUTHTYPE_NONE {
-		copy(msg.rmcp.session.auth_code[0:],
-			msg.data[data_start+9:data_start+25])
-		msg.rmcp.session.payload_lgth = msg.data[data_start+25]
-		msg.data_start += 26
+	if msg.rmcp.session.authType != IPMI_AUTHTYPE_NONE {
+		copy(msg.rmcp.session.authCode[0:],
+			msg.data[dataStart+9:dataStart+25])
+		msg.rmcp.session.payloadLgth = msg.data[dataStart+25]
+		msg.dataStart += 26
 	} else {
-		msg.data_start += 10
+		msg.dataStart += 10
 	}
-	data_start = msg.data_start
+	dataStart = msg.dataStart
 
 	// Load IPMI Message fields
-	msg.rmcp.message.rs_addr = msg.data[data_start]
-	msg.rmcp.message.netfn = msg.data[data_start+1] >> 2
-	msg.rmcp.message.rs_lun = msg.data[data_start+1] & 0x3
-	msg.rmcp.message.rq_addr = msg.data[data_start+3]
-	msg.rmcp.message.rq_seq = msg.data[data_start+4] >> 2
-	msg.rmcp.message.rq_lun = msg.data[data_start+4] & 0x3
-	msg.rmcp.message.cmd = msg.data[data_start+5]
-	msg.data_start += 6
+	msg.rmcp.message.rsAddr = msg.data[dataStart]
+	msg.rmcp.message.netfn = msg.data[dataStart+1] >> 2
+	msg.rmcp.message.rsLun = msg.data[dataStart+1] & 0x3
+	msg.rmcp.message.rqAddr = msg.data[dataStart+3]
+	msg.rmcp.message.rqSeq = msg.data[dataStart+4] >> 2
+	msg.rmcp.message.rqLun = msg.data[dataStart+4] & 0x3
+	msg.rmcp.message.cmd = msg.data[dataStart+5]
+	msg.dataStart += 6
 }
 
-func (msg *msg_t) return_rsp(session *session_t, rsp *rsp_msg_data_t) {
+func (msg *msgT) returnRsp(session *sessionT, rsp *rspMsgDataT) {
 	var (
-		data          [MAX_MSG_RETURN_DATA]uint8
-		csum          int8
-		dummy_session session_t
-		len           int
+		data         [MAX_MSG_RETURN_DATA]uint8
+		csum         int8
+		dummySession sessionT
+		len          int
 	)
 
 	if session == nil {
-		session = sid_to_session(msg.sid)
+		session = sidToSession(msg.sid)
 	}
 	if session != nil && session.rmcpplus {
 		//rmcp plus not currently supported
-		fmt.Println("RMCP return_rsp not supported!")
+		fmt.Println("RMCP+ returnRsp not supported!")
 		return
 	} else if msg.sid == 0 {
-		session = &dummy_session
+		session = &dummySession
 		session.active = true
 		session.authtype = IPMI_AUTHTYPE_NONE
-		session.xmit_seq = 0
+		session.xmitSeq = 0
 		session.sid = 0
 	}
 
 	if session == nil {
-		fmt.Println("return_rsp: Can't find session")
+		fmt.Println("returnRsp: Can't find session")
 		return
 	}
 
@@ -266,10 +266,10 @@ func (msg *msg_t) return_rsp(session *session_t, rsp *rsp_msg_data_t) {
 	dcur++
 	data[dcur] = session.authtype
 	dcur++
-	binary.LittleEndian.PutUint32(data[dcur:dcur+4], session.xmit_seq)
-	session.xmit_seq++
-	if session.xmit_seq == 0 {
-		session.xmit_seq++
+	binary.LittleEndian.PutUint32(data[dcur:dcur+4], session.xmitSeq)
+	session.xmitSeq++
+	if session.xmitSeq == 0 {
+		session.xmitSeq++
 	}
 	dcur += 4
 	binary.LittleEndian.PutUint32(data[dcur:dcur+4], session.sid)
@@ -278,31 +278,31 @@ func (msg *msg_t) return_rsp(session *session_t, rsp *rsp_msg_data_t) {
 		dcur += 16 // sizeof rmcp.session.auth_code[]
 	}
 	// Add message structure length to specified payload length
-	len = int(rsp.data_len + 7) // rmcp.message layer size
+	len = int(rsp.dataLen + 7) // rmcp.message layer size
 	data[dcur] = uint8(len)
 	dcur++
-	start_of_msg := dcur
-	data[dcur] = msg.rmcp.message.rq_addr
+	startOfMsg := dcur
+	data[dcur] = msg.rmcp.message.rqAddr
 	dcur++
-	data[dcur] = (rsp.netfn << 2) | msg.rmcp.message.rq_lun
+	data[dcur] = (rsp.netfn << 2) | msg.rmcp.message.rqLun
 	dcur++
-	data[dcur] = uint8(ipmi_checksum(data[start_of_msg:start_of_msg+2], 2, 0))
+	data[dcur] = uint8(ipmiChecksum(data[startOfMsg:startOfMsg+2], 2, 0))
 	if debug {
 		fmt.Printf("csum1: %x\n", data[dcur])
 	}
 	dcur++
-	data[dcur] = msg.rmcp.message.rs_addr
+	data[dcur] = msg.rmcp.message.rsAddr
 	dcur++
-	data[dcur] = (msg.rmcp.message.rq_seq << 2) | msg.rmcp.message.rs_lun
+	data[dcur] = (msg.rmcp.message.rqSeq << 2) | msg.rmcp.message.rsLun
 	dcur++
 	data[dcur] = rsp.cmd
 	dcur++
 	// copy the response payload data into msg data
-	copy(data[dcur:], rsp.data[0:rsp.data_len])
-	csum = -ipmi_checksum(data[dcur-3:dcur], 3, 0)
-	csum = ipmi_checksum(data[dcur:dcur+int(rsp.data_len)],
-		int(rsp.data_len), csum)
-	dcur += int(rsp.data_len)
+	copy(data[dcur:], rsp.data[0:rsp.dataLen])
+	csum = -ipmiChecksum(data[dcur-3:dcur], 3, 0)
+	csum = ipmiChecksum(data[dcur:dcur+int(rsp.dataLen)],
+		int(rsp.dataLen), csum)
+	dcur += int(rsp.dataLen)
 	data[dcur] = uint8(csum)
 	if debug {
 		fmt.Printf("csum2: %x\n", data[dcur])
@@ -317,305 +317,305 @@ func (msg *msg_t) return_rsp(session *session_t, rsp *rsp_msg_data_t) {
 		//    &csum, 1);
 	}
 	if debug {
-		fmt.Println("Sending", dcur, " bytes to", msg.remote_addr)
+		fmt.Println("Sending", dcur, " bytes to", msg.remoteAddr)
 	}
-	msg.conn.WriteToUDP(data[0:dcur], msg.remote_addr)
+	msg.conn.WriteToUDP(data[0:dcur], msg.remoteAddr)
 }
 
-func (msg *msg_t) return_err(session *session_t, err uint8) {
+func (msg *msgT) returnErr(session *sessionT, err uint8) {
 
-	var rsp rsp_msg_data_t
+	var rsp rspMsgDataT
 
 	rsp.netfn = msg.rmcp.message.netfn | 1
 	rsp.cmd = msg.rmcp.message.cmd
 	rsp.data[0] = err
-	rsp.data_len = 1
-	msg.return_rsp(session, &rsp)
+	rsp.dataLen = 1
+	msg.returnRsp(session, &rsp)
 }
 
-func (msg *msg_t) return_rsp_data(session *session_t, data []uint8,
-	data_length uint) {
-	var rsp rsp_msg_data_t
+func (msg *msgT) returnRspData(session *sessionT, data []uint8,
+	dataLength uint) {
+	var rsp rspMsgDataT
 
 	rsp.netfn = msg.rmcp.message.netfn | 1
 	rsp.cmd = msg.rmcp.message.cmd
-	copy(rsp.data[0:], data[0:data_length])
-	rsp.data_len = uint16(data_length)
+	copy(rsp.data[0:], data[0:dataLength])
+	rsp.dataLen = uint16(dataLength)
 
-	msg.return_rsp(session, &rsp)
+	msg.returnRsp(session, &rsp)
 }
 
-type ipmi_netfunc_processor func(*msg_t)
+type ipmiNetfuncProcessor func(*msgT)
 
-var netfunc_processors = map[uint8]ipmi_netfunc_processor{
-	CHASSIS_NETFN:         chassis_netfn,
-	BRIDGE_NETFN:          bridge_netfn,
-	SENSOR_EVENT_NETFN:    sensor_event_netfn,
-	APP_NETFN:             app_netfn,
-	FIRMWARE_NETFN:        firmware_netfn,
-	STORAGE_NETFN:         storage_netfn,
-	TRANSPORT_NETFN:       transport_netfn,
-	GROUP_EXTENSION_NETFN: group_extension_netfn,
-	OEM_GROUP_NETFN:       oem_group_netfn,
+var netfuncProcessors = map[uint8]ipmiNetfuncProcessor{
+	CHASSIS_NETFN:         chassisNetfn,
+	BRIDGE_NETFN:          bridgeNetfn,
+	SENSOR_EVENT_NETFN:    sensorEventNetfn,
+	APP_NETFN:             appNetfn,
+	FIRMWARE_NETFN:        firmwareNetfn,
+	STORAGE_NETFN:         storageNetfn,
+	TRANSPORT_NETFN:       transportNetfn,
+	GROUP_EXTENSION_NETFN: groupExtensionNetfn,
+	OEM_GROUP_NETFN:       oemGroupNetfn,
 }
 
-type chassis_processor func(*msg_t)
+type chassisProcessor func(*msgT)
 
-var chassis_processors = map[uint8]chassis_processor{
-	GET_CHASSIS_CAPABILITIES_CMD: get_chassis_capabilities,
-	CHASSIS_CONTROL_CMD:          chassis_control,
-	CHASSIS_RESET_CMD:            chassis_reset,
-	CHASSIS_IDENTIFY_CMD:         chassis_identify,
-	SET_CHASSIS_CAPABILITIES_CMD: set_chassis_capabilities,
-	SET_POWER_RESTORE_POLICY_CMD: set_power_restore_policy,
-	GET_SYSTEM_RESTART_CAUSE_CMD: get_system_restart_cause,
-	SET_SYSTEM_BOOT_OPTIONS_CMD:  set_system_boot_options,
-	GET_SYSTEM_BOOT_OPTIONS_CMD:  get_system_boot_options,
+var chassisProcessors = map[uint8]chassisProcessor{
+	GET_CHASSIS_CAPABILITIES_CMD: getChassisCapabilities,
+	CHASSIS_CONTROL_CMD:          chassisControl,
+	CHASSIS_RESET_CMD:            chassisReset,
+	CHASSIS_IDENTIFY_CMD:         chassisIdentify,
+	SET_CHASSIS_CAPABILITIES_CMD: setChassisCapabilities,
+	SET_POWER_RESTORE_POLICY_CMD: setPowerRestorePolicy,
+	GET_SYSTEM_RESTART_CAUSE_CMD: getSystemRestartCause,
+	SET_SYSTEM_BOOT_OPTIONS_CMD:  setSystemBootOptions,
+	GET_SYSTEM_BOOT_OPTIONS_CMD:  getSystemBootOptions,
 }
 
-func chassis_netfn(msg *msg_t) {
-	(chassis_processors[msg.rmcp.message.cmd])(msg)
+func chassisNetfn(msg *msgT) {
+	(chassisProcessors[msg.rmcp.message.cmd])(msg)
 }
 
-type bridge_processor func(*msg_t)
+type bridgeProcessor func(*msgT)
 
-var bridge_processors = map[uint8]bridge_processor{
-	GET_BRIDGE_STATE_CMD:         get_bridge_state,
-	SET_BRIDGE_STATE_CMD:         set_bridge_state,
-	GET_ICMB_ADDRESS_CMD:         get_icmb_address,
-	SET_ICMB_ADDRESS_CMD:         set_icmb_address,
-	SET_BRIDGE_PROXY_ADDRESS_CMD: set_bridge_proxy_address,
-	GET_BRIDGE_STATISTICS_CMD:    get_bridge_statistics,
-	GET_ICMB_CAPABILITIES_CMD:    get_icmb_capabilities,
+var bridgeProcessors = map[uint8]bridgeProcessor{
+	GET_BRIDGE_STATE_CMD:         getBridgeState,
+	SET_BRIDGE_STATE_CMD:         setBridgeState,
+	GET_ICMB_ADDRESS_CMD:         getIcmbAddress,
+	SET_ICMB_ADDRESS_CMD:         setIcmbAddress,
+	SET_BRIDGE_PROXY_ADDRESS_CMD: setBridgeProxyAddress,
+	GET_BRIDGE_STATISTICS_CMD:    getBridgeStatistics,
+	GET_ICMB_CAPABILITIES_CMD:    getIcmbCapabilities,
 
-	CLEAR_BRIDGE_STATISTICS_CMD:  clear_bridge_statistics,
-	GET_BRIDGE_PROXY_ADDRESS_CMD: get_bridge_proxy_address,
-	GET_ICMB_CONNECTOR_INFO_CMD:  get_icmb_connector_info,
-	SET_ICMB_CONNECTOR_INFO_CMD:  set_icmb_connector_info,
-	SEND_ICMB_CONNECTION_ID_CMD:  send_icmb_connection_id,
+	CLEAR_BRIDGE_STATISTICS_CMD:  clearBridgeStatistics,
+	GET_BRIDGE_PROXY_ADDRESS_CMD: getBridgeProxyAddress,
+	GET_ICMB_CONNECTOR_INFO_CMD:  getIcmbConnectorInfo,
+	SET_ICMB_CONNECTOR_INFO_CMD:  setIcmbConnectorInfo,
+	SEND_ICMB_CONNECTION_ID_CMD:  sendIcmbConnectionId,
 
-	PREPARE_FOR_DISCOVERY_CMD: prepare_for_discovery,
-	GET_ADDRESSES_CMD:         get_addresses,
-	SET_DISCOVERED_CMD:        set_discovered,
-	GET_CHASSIS_DEVICE_ID_CMD: get_chassis_device_id,
-	SET_CHASSIS_DEVICE_ID_CMD: set_chassis_device_id,
+	PREPARE_FOR_DISCOVERY_CMD: prepareForDiscovery,
+	GET_ADDRESSES_CMD:         getAddresses,
+	SET_DISCOVERED_CMD:        setDiscovered,
+	GET_CHASSIS_DEVICE_ID_CMD: getChassisDeviceId,
+	SET_CHASSIS_DEVICE_ID_CMD: setChassisDeviceId,
 
-	BRIDGE_REQUEST_CMD: bridge_request,
-	BRIDGE_MESSAGE_CMD: bridge_message,
+	BRIDGE_REQUEST_CMD: bridgeRequest,
+	BRIDGE_MESSAGE_CMD: bridgeMessage,
 
-	GET_EVENT_COUNT_CMD:           get_event_count,
-	SET_EVENT_DESTINATION_CMD:     set_event_destination,
-	SET_EVENT_RECEPTION_STATE_CMD: set_event_reception_state,
-	SEND_ICMB_EVENT_MESSAGE_CMD:   send_icmb_event_message,
-	GET_EVENT_DESTIATION_CMD:      get_event_destination,
-	GET_EVENT_RECEPTION_STATE_CMD: get_event_reception_state,
+	GET_EVENT_COUNT_CMD:           getEventCount,
+	SET_EVENT_DESTINATION_CMD:     setEventDestination,
+	SET_EVENT_RECEPTION_STATE_CMD: setEventReceptionState,
+	SEND_ICMB_EVENT_MESSAGE_CMD:   sendIcmbEventMessage,
+	GET_EVENT_DESTIATION_CMD:      getEventDestination,
+	GET_EVENT_RECEPTION_STATE_CMD: getEventReceptionState,
 
-	ERROR_REPORT_CMD: error_report,
+	ERROR_REPORT_CMD: errorReport,
 }
 
-func bridge_netfn(msg *msg_t) {
-	fmt.Println("bridge_netfn not supported",
+func bridgeNetfn(msg *msgT) {
+	fmt.Println("bridgeNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-type sensor_processor func(*msg_t)
+type sensorProcessor func(*msgT)
 
-var sensor_processors = map[uint8]sensor_processor{
-	SET_EVENT_RECEIVER_CMD: set_event_receiver,
-	GET_EVENT_RECEIVER_CMD: get_event_receiver,
-	PLATFORM_EVENT_CMD:     platform_event,
+var sensorProcessors = map[uint8]sensorProcessor{
+	SET_EVENT_RECEIVER_CMD: setEventReceiver,
+	GET_EVENT_RECEIVER_CMD: getEventReceiver,
+	PLATFORM_EVENT_CMD:     platformEvent,
 
-	GET_PEF_CAPABILITIES_CMD:        get_pef_capabilities,
-	ARM_PEF_POSTPONE_TIMER_CMD:      arm_pef_postpone_timer,
-	SET_PEF_CONFIG_PARMS_CMD:        set_pef_config_parms,
-	GET_PEF_CONFIG_PARMS_CMD:        get_pef_config_parms,
-	SET_LAST_PROCESSED_EVENT_ID_CMD: set_last_processed_event_id,
-	GET_LAST_PROCESSED_EVENT_ID_CMD: get_last_processed_event_id,
-	ALERT_IMMEDIATE_CMD:             alert_immediate,
-	PET_ACKNOWLEDGE_CMD:             pet_acknowledge,
+	GET_PEF_CAPABILITIES_CMD:        getPefCapabilities,
+	ARM_PEF_POSTPONE_TIMER_CMD:      armPefPostponeTimer,
+	SET_PEF_CONFIG_PARMS_CMD:        setPefConfigParms,
+	GET_PEF_CONFIG_PARMS_CMD:        getPefConfigParms,
+	SET_LAST_PROCESSED_EVENT_ID_CMD: setLastProcessedEventId,
+	GET_LAST_PROCESSED_EVENT_ID_CMD: getLastProcessedEventId,
+	ALERT_IMMEDIATE_CMD:             alertImmediate,
+	PET_ACKNOWLEDGE_CMD:             petAcknowledge,
 
-	GET_DEVICE_SDR_INFO_CMD:           get_device_sdr_info,
-	GET_DEVICE_SDR_CMD:                get_device_sdr,
-	RESERVE_DEVICE_SDR_REPOSITORY_CMD: reserve_device_sdr_repository,
-	GET_SENSOR_READING_FACTORS_CMD:    get_sensor_reading_factors,
-	SET_SENSOR_HYSTERESIS_CMD:         set_sensor_hysteresis,
-	GET_SENSOR_HYSTERESIS_CMD:         get_sensor_hysteresis,
-	SET_SENSOR_THRESHOLD_CMD:          set_sensor_threshold,
-	GET_SENSOR_THRESHOLD_CMD:          get_sensor_threshold,
-	SET_SENSOR_EVENT_ENABLE_CMD:       set_sensor_event_enable,
-	GET_SENSOR_EVENT_ENABLE_CMD:       get_sensor_event_enable,
-	REARM_SENSOR_EVENTS_CMD:           rearm_sensor_events,
-	GET_SENSOR_EVENT_STATUS_CMD:       get_sensor_event_status,
-	GET_SENSOR_READING_CMD:            get_sensor_reading,
-	SET_SENSOR_TYPE_CMD:               set_sensor_type,
-	GET_SENSOR_TYPE_CMD:               get_sensor_type,
+	GET_DEVICE_SDR_INFO_CMD:           getDeviceSdrInfo,
+	GET_DEVICE_SDR_CMD:                getDeviceSdr,
+	RESERVE_DEVICE_SDR_REPOSITORY_CMD: reserveDeviceSdrRepository,
+	GET_SENSOR_READING_FACTORS_CMD:    getSensorReadingFactors,
+	SET_SENSOR_HYSTERESIS_CMD:         setSensorHysteresis,
+	GET_SENSOR_HYSTERESIS_CMD:         getSensorHysteresis,
+	SET_SENSOR_THRESHOLD_CMD:          setSensorThreshold,
+	GET_SENSOR_THRESHOLD_CMD:          getSensorThreshold,
+	SET_SENSOR_EVENT_ENABLE_CMD:       setSensorEventEnable,
+	GET_SENSOR_EVENT_ENABLE_CMD:       getSensorEventEnable,
+	REARM_SENSOR_EVENTS_CMD:           rearmSensorEvents,
+	GET_SENSOR_EVENT_STATUS_CMD:       getSensorEventStatus,
+	GET_SENSOR_READING_CMD:            getSensorReading,
+	SET_SENSOR_TYPE_CMD:               setSensorType,
+	GET_SENSOR_TYPE_CMD:               getSensorType,
 }
 
-func sensor_event_netfn(msg *msg_t) {
-	(sensor_processors[msg.rmcp.message.cmd])(msg)
+func sensorEventNetfn(msg *msgT) {
+	(sensorProcessors[msg.rmcp.message.cmd])(msg)
 }
 
-type app_processor func(*msg_t)
+type appProcessor func(*msgT)
 
-var app_processors = map[uint8]app_processor{
-	GET_DEVICE_ID_CMD:                 get_device_id,
-	COLD_RESET_CMD:                    cold_reset,
-	WARM_RESET_CMD:                    warm_reset,
-	GET_SELF_TEST_RESULTS_CMD:         get_self_test_results,
-	MANUFACTURING_TEST_ON_CMD:         manufacturing_test_on,
-	SET_ACPI_POWER_STATE_CMD:          set_acpi_power_state,
-	GET_ACPI_POWER_STATE_CMD:          get_acpi_power_state,
-	GET_DEVICE_GUID_CMD:               get_device_guid,
-	RESET_WATCHDOG_TIMER_CMD:          reset_watchdog_timer,
-	SET_WATCHDOG_TIMER_CMD:            set_watchdog_timer,
-	GET_WATCHDOG_TIMER_CMD:            get_watchdog_timer,
-	SET_BMC_GLOBAL_ENABLES_CMD:        set_bmc_global_enables,
-	GET_BMC_GLOBAL_ENABLES_CMD:        get_bmc_global_enables,
-	CLEAR_MSG_FLAGS_CMD:               clear_msg_flags,
-	GET_MSG_FLAGS_CMD:                 get_msg_flags_cmd,
-	ENABLE_MESSAGE_CHANNEL_RCV_CMD:    enable_message_channel_rcv,
-	GET_MSG_CMD:                       get_msg,
-	SEND_MSG_CMD:                      send_msg,
-	READ_EVENT_MSG_BUFFER_CMD:         read_event_msg_buffer,
-	GET_BT_INTERFACE_CAPABILITIES_CMD: get_bt_interface_capabilties,
-	GET_SYSTEM_GUID_CMD:               get_system_guid,
-	GET_CHANNEL_AUTH_CAPABILITIES_CMD: get_channel_auth_capabilties,
-	GET_SESSION_CHALLENGE_CMD:         get_session_challenge,
-	ACTIVATE_SESSION_CMD:              activate_session,
-	SET_SESSION_PRIVILEGE_CMD:         set_session_privilege,
-	CLOSE_SESSION_CMD:                 close_session,
-	GET_SESSION_INFO_CMD:              get_session_info,
+var appProcessors = map[uint8]appProcessor{
+	GET_DEVICE_ID_CMD:                 getDeviceId,
+	COLD_RESET_CMD:                    coldReset,
+	WARM_RESET_CMD:                    warmReset,
+	GET_SELF_TEST_RESULTS_CMD:         getSelfTestResults,
+	MANUFACTURING_TEST_ON_CMD:         manufacturingTestOn,
+	SET_ACPI_POWER_STATE_CMD:          setAcpiPowerState,
+	GET_ACPI_POWER_STATE_CMD:          getAcpiPowerState,
+	GET_DEVICE_GUID_CMD:               getDeviceGuid,
+	RESET_WATCHDOG_TIMER_CMD:          resetWatchdogTimer,
+	SET_WATCHDOG_TIMER_CMD:            setWatchdogTimer,
+	GET_WATCHDOG_TIMER_CMD:            getWatchdogTimer,
+	SET_BMC_GLOBAL_ENABLES_CMD:        setBmcGlobalEnables,
+	GET_BMC_GLOBAL_ENABLES_CMD:        getBmcGlobalEnables,
+	CLEAR_MSG_FLAGS_CMD:               clearMsgFlags,
+	GET_MSG_FLAGS_CMD:                 getMsgFlagsCmd,
+	ENABLE_MESSAGE_CHANNEL_RCV_CMD:    enableMessageChannelRcv,
+	GET_MSG_CMD:                       getMsg,
+	SEND_MSG_CMD:                      sendMsg,
+	READ_EVENT_MSG_BUFFER_CMD:         readEventMsgBuffer,
+	GET_BT_INTERFACE_CAPABILITIES_CMD: getBtInterfaceCapabilties,
+	GET_SYSTEM_GUID_CMD:               getSystemGuid,
+	GET_CHANNEL_AUTH_CAPABILITIES_CMD: getChannelAuthCapabilties,
+	GET_SESSION_CHALLENGE_CMD:         getSessionChallenge,
+	ACTIVATE_SESSION_CMD:              activateSession,
+	SET_SESSION_PRIVILEGE_CMD:         setSessionPrivilege,
+	CLOSE_SESSION_CMD:                 closeSession,
+	GET_SESSION_INFO_CMD:              getSessionInfo,
 
-	GET_AUTHCODE_CMD:                  get_authcode,
-	SET_CHANNEL_ACCESS_CMD:            set_channel_access,
-	GET_CHANNEL_ACCESS_CMD:            get_channel_access,
-	GET_CHANNEL_INFO_CMD:              get_channel_info,
-	SET_USER_ACCESS_CMD:               set_user_access,
-	GET_USER_ACCESS_CMD:               get_user_access,
-	SET_USER_NAME_CMD:                 set_user_name,
-	GET_USER_NAME_CMD:                 get_user_name,
-	SET_USER_PASSWORD_CMD:             set_user_password,
-	ACTIVATE_PAYLOAD_CMD:              activate_payload,
-	DEACTIVATE_PAYLOAD_CMD:            deavtivate_payload,
-	GET_PAYLOAD_ACTIVATION_STATUS_CMD: get_payload_activation_status,
-	GET_PAYLOAD_INSTANCE_INFO_CMD:     get_payload_instance_info,
-	SET_USER_PAYLOAD_ACCESS_CMD:       set_user_payload_access,
-	GET_USER_PAYLOAD_ACCESS_CMD:       get_user_payload_access,
-	GET_CHANNEL_PAYLOAD_SUPPORT_CMD:   get_channel_payload_support,
-	GET_CHANNEL_PAYLOAD_VERSION_CMD:   get_channel_payload_version,
-	GET_CHANNEL_OEM_PAYLOAD_INFO_CMD:  get_channel_oem_payload_info,
+	GET_AUTHCODE_CMD:                  getAuthcode,
+	SET_CHANNEL_ACCESS_CMD:            setChannelAccess,
+	GET_CHANNEL_ACCESS_CMD:            getChannelAccess,
+	GET_CHANNEL_INFO_CMD:              getChannelInfo,
+	SET_USER_ACCESS_CMD:               setUserAccess,
+	GET_USER_ACCESS_CMD:               getUserAccess,
+	SET_USER_NAME_CMD:                 setUserName,
+	GET_USER_NAME_CMD:                 getUserName,
+	SET_USER_PASSWORD_CMD:             setUserPassword,
+	ACTIVATE_PAYLOAD_CMD:              activatePayload,
+	DEACTIVATE_PAYLOAD_CMD:            deavtivatePayload,
+	GET_PAYLOAD_ACTIVATION_STATUS_CMD: getPayloadActivationStatus,
+	GET_PAYLOAD_INSTANCE_INFO_CMD:     getPayloadInstanceInfo,
+	SET_USER_PAYLOAD_ACCESS_CMD:       setUserPayloadAccess,
+	GET_USER_PAYLOAD_ACCESS_CMD:       getUserPayloadAccess,
+	GET_CHANNEL_PAYLOAD_SUPPORT_CMD:   getChannelPayloadSupport,
+	GET_CHANNEL_PAYLOAD_VERSION_CMD:   getChannelPayloadVersion,
+	GET_CHANNEL_OEM_PAYLOAD_INFO_CMD:  getChannelOemPayloadInfo,
 
-	MASTER_READ_WRITE_CMD: master_read_write,
+	MASTER_READ_WRITE_CMD: masterReadWrite,
 
-	GET_CHANNEL_CIPHER_SUITES_CMD:         get_channel_cipher_suites,
-	SUSPEND_RESUME_PAYLOAD_ENCRYPTION_CMD: suspend_resume_payload_encryption,
-	SET_CHANNEL_SECURITY_KEY_CMD:          set_channel_security_key,
-	GET_SYSTEM_INTERFACE_CAPABILITIES_CMD: get_system_interface_capabilities,
+	GET_CHANNEL_CIPHER_SUITES_CMD:         getChannelCipherSuites,
+	SUSPEND_RESUME_PAYLOAD_ENCRYPTION_CMD: suspendResumePayloadEncryption,
+	SET_CHANNEL_SECURITY_KEY_CMD:          setChannelSecurityKey,
+	GET_SYSTEM_INTERFACE_CAPABILITIES_CMD: getSystemInterfaceCapabilities,
 }
 
-func app_netfn(msg *msg_t) {
-	(app_processors[msg.rmcp.message.cmd])(msg)
+func appNetfn(msg *msgT) {
+	(appProcessors[msg.rmcp.message.cmd])(msg)
 }
 
-func firmware_netfn(msg *msg_t) {
-	fmt.Println("firmware_netfn not supported",
+func firmwareNetfn(msg *msgT) {
+	fmt.Println("firmwareNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-type storage_processor func(*msg_t)
+type storageProcessor func(*msgT)
 
-var storage_processors = map[uint8]storage_processor{
-	GET_FRU_INVENTORY_AREA_INFO_CMD: get_fru_inventory_area_info,
-	READ_FRU_DATA_CMD:               read_fru_data,
-	WRITE_FRU_DATA_CMD:              write_fru_data,
+var storageProcessors = map[uint8]storageProcessor{
+	GET_FRU_INVENTORY_AREA_INFO_CMD: getFruInventoryAreaInfo,
+	READ_FRU_DATA_CMD:               readFruData,
+	WRITE_FRU_DATA_CMD:              writeFruData,
 
-	GET_SDR_REPOSITORY_INFO_CMD:       get_sdr_repository_info,
-	GET_SDR_REPOSITORY_ALLOC_INFO_CMD: get_sdr_repository_alloc_info,
-	RESERVE_SDR_REPOSITORY_CMD:        reserve_sdr_repository,
-	GET_SDR_CMD:                       get_sdr,
-	ADD_SDR_CMD:                       add_sdr_cmd,
-	PARTIAL_ADD_SDR_CMD:               partial_add_sdr,
-	DELETE_SDR_CMD:                    delete_sdr,
-	CLEAR_SDR_REPOSITORY_CMD:          clear_sdr_repository,
-	GET_SDR_REPOSITORY_TIME_CMD:       get_sdr_repository_time,
-	SET_SDR_REPOSITORY_TIME_CMD:       set_sdr_repository_time,
-	ENTER_SDR_REPOSITORY_UPDATE_CMD:   enter_sdr_repository_update,
-	EXIT_SDR_REPOSITORY_UPDATE_CMD:    exit_sdr_repository_update,
-	RUN_INITIALIZATION_AGENT_CMD:      run_initialization_agent,
+	GET_SDR_REPOSITORY_INFO_CMD:       getSdrRepositoryInfo,
+	GET_SDR_REPOSITORY_ALLOC_INFO_CMD: getSdrRepositoryAllocInfo,
+	RESERVE_SDR_REPOSITORY_CMD:        reserveSdrRepository,
+	GET_SDR_CMD:                       getSdr,
+	ADD_SDR_CMD:                       addSdrCmd,
+	PARTIAL_ADD_SDR_CMD:               partialAddSdr,
+	DELETE_SDR_CMD:                    deleteSdr,
+	CLEAR_SDR_REPOSITORY_CMD:          clearSdrRepository,
+	GET_SDR_REPOSITORY_TIME_CMD:       getSdrRepositoryTime,
+	SET_SDR_REPOSITORY_TIME_CMD:       setSdrRepositoryTime,
+	ENTER_SDR_REPOSITORY_UPDATE_CMD:   enterSdrRepositoryUpdate,
+	EXIT_SDR_REPOSITORY_UPDATE_CMD:    exitSdrRepositoryUpdate,
+	RUN_INITIALIZATION_AGENT_CMD:      runInitializationAgent,
 
-	GET_SEL_INFO_CMD:             get_sel_info,
-	GET_SEL_ALLOCATION_INFO_CMD:  get_sel_allocation_info,
-	RESERVE_SEL_CMD:              reserve_sel,
-	GET_SEL_ENTRY_CMD:            get_sel_entry,
-	ADD_SEL_ENTRY_CMD:            add_sel_entry,
-	PARTIAL_ADD_SEL_ENTRY_CMD:    partial_add_sel_entry,
-	DELETE_SEL_ENTRY_CMD:         delete_sel_entry,
-	CLEAR_SEL_CMD:                clear_sel,
-	GET_SEL_TIME_CMD:             get_sel_time,
-	SET_SEL_TIME_CMD:             set_sel_time,
-	GET_AUXILIARY_LOG_STATUS_CMD: get_auxiliary_log_status,
-	SET_AUXILIARY_LOG_STATUS_CMD: set_auxiliary_log_status,
+	GET_SEL_INFO_CMD:             getSelInfo,
+	GET_SEL_ALLOCATION_INFO_CMD:  getSelAllocationInfo,
+	RESERVE_SEL_CMD:              reserveSel,
+	GET_SEL_ENTRY_CMD:            getSelEntry,
+	ADD_SEL_ENTRY_CMD:            addSelEntry,
+	PARTIAL_ADD_SEL_ENTRY_CMD:    partialAddSelEntry,
+	DELETE_SEL_ENTRY_CMD:         deleteSelEntry,
+	CLEAR_SEL_CMD:                clearSel,
+	GET_SEL_TIME_CMD:             getSelTime,
+	SET_SEL_TIME_CMD:             setSelTime,
+	GET_AUXILIARY_LOG_STATUS_CMD: getAuxiliaryLogStatus,
+	SET_AUXILIARY_LOG_STATUS_CMD: setAuxiliaryLogStatus,
 }
 
-func storage_netfn(msg *msg_t) {
-	(storage_processors[msg.rmcp.message.cmd])(msg)
+func storageNetfn(msg *msgT) {
+	(storageProcessors[msg.rmcp.message.cmd])(msg)
 }
 
-type transport_processor func(*msg_t)
+type transportProcessor func(*msgT)
 
-var transport_processors = map[uint8]transport_processor{
-	SET_LAN_CONFIG_PARMS_CMD:  set_lan_config_parms,
-	GET_LAN_CONFIG_PARMS_CMD:  get_lan_config_parms,
-	SUSPEND_BMC_ARPS_CMD:      suspend_bmc_arps,
-	GET_IP_UDP_RMCP_STATS_CMD: get_ip_udp_rmcp_stats,
+var transportProcessors = map[uint8]transportProcessor{
+	SET_LAN_CONFIG_PARMS_CMD:  setLanConfigParms,
+	GET_LAN_CONFIG_PARMS_CMD:  getLanConfigParms,
+	SUSPEND_BMC_ARPS_CMD:      suspendBmcArps,
+	GET_IP_UDP_RMCP_STATS_CMD: getIpUdpRmcpStats,
 
-	SET_SERIAL_MODEM_CONFIG_CMD:     set_serial_modem_config,
-	GET_SERIAL_MODEM_CONFIG_CMD:     get_serial_modem_config,
-	SET_SERIAL_MODEM_MUX_CMD:        set_serial_modem_mux,
-	GET_TAP_RESPONSE_CODES_CMD:      get_tap_response_codes,
-	SET_PPP_UDP_PROXY_XMIT_DATA_CMD: set_ppp_udp_proxy_xmit_data,
-	GET_PPP_UDP_PROXY_XMIT_DATA_CMD: get_ppp_udp_proxy_xmit_data,
-	SEND_PPP_UDP_PROXY_PACKET_CMD:   send_ppp_udp_proxy_packet,
-	GET_PPP_UDP_PROXY_RECV_DATA_CMD: get_ppp_udp_proxy_recv_data,
-	SERIAL_MODEM_CONN_ACTIVE_CMD:    serial_modem_conn_active,
-	CALLBACK_CMD:                    callback_cmd,
-	SET_USER_CALLBACK_OPTIONS_CMD:   set_user_callback_options,
-	GET_USER_CALLBACK_OPTIONS_CMD:   get_user_callback_options,
+	SET_SERIAL_MODEM_CONFIG_CMD:     setSerialModemConfig,
+	GET_SERIAL_MODEM_CONFIG_CMD:     getSerialModemConfig,
+	SET_SERIAL_MODEM_MUX_CMD:        setSerialModemMux,
+	GET_TAP_RESPONSE_CODES_CMD:      getTapResponseCodes,
+	SET_PPP_UDP_PROXY_XMIT_DATA_CMD: setPppUdpProxyXmitData,
+	GET_PPP_UDP_PROXY_XMIT_DATA_CMD: getPppUdpProxyXmitData,
+	SEND_PPP_UDP_PROXY_PACKET_CMD:   sendPppUdpProxyPacket,
+	GET_PPP_UDP_PROXY_RECV_DATA_CMD: getPppUdpProxyRecvData,
+	SERIAL_MODEM_CONN_ACTIVE_CMD:    serialModemConnActive,
+	CALLBACK_CMD:                    callbackCmd,
+	SET_USER_CALLBACK_OPTIONS_CMD:   setUserCallbackOptions,
+	GET_USER_CALLBACK_OPTIONS_CMD:   getUserCallbackOptions,
 
-	SOL_ACTIVATING_CMD:               sol_activating,
-	SET_SOL_CONFIGURATION_PARAMETERS: set_sol_configuration_parameters,
-	GET_SOL_CONFIGURATION_PARAMETERS: get_sol_configuration_parameters,
+	SOL_ACTIVATING_CMD:               solActivating,
+	SET_SOL_CONFIGURATION_PARAMETERS: setSolConfigurationParameters,
+	GET_SOL_CONFIGURATION_PARAMETERS: getSolConfigurationParameters,
 }
 
-func transport_netfn(msg *msg_t) {
-	fmt.Println("transport_netfn not supported",
+func transportNetfn(msg *msgT) {
+	fmt.Println("transportNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func group_extension_netfn(msg *msg_t) {
-	fmt.Println("group_extension_netfn not supported",
+func groupExtensionNetfn(msg *msgT) {
+	fmt.Println("groupExtensionNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
-func oem_group_netfn(msg *msg_t) {
-	fmt.Println("oem_group_netfn not supported",
+func oemGroupNetfn(msg *msgT) {
+	fmt.Println("oemGroupNetfn not supported",
 		msg.rmcp.message.cmd)
 }
 
 const ASF_IANA = 4542
 
-func asf_ping(msg *msg_t) {
+func asfPing(msg *msgT) {
 	var rsp [28]uint8
-	data_start := msg.data_start
+	dataStart := msg.dataStart
 
 	// Check message integrity and if it's a ping.
-	if msg.data_len < 12 {
+	if msg.dataLen < 12 {
 		return
 	}
-	if binary.LittleEndian.Uint32(msg.data[data_start+4:data_start+8]) != ASF_IANA {
+	if binary.LittleEndian.Uint32(msg.data[dataStart+4:dataStart+8]) != ASF_IANA {
 		return // Not ASF IANA
 	}
-	if msg.data[data_start+8] != 0x80 {
+	if msg.data[dataStart+8] != 0x80 {
 		return // Not a presence ping.
 	}
 
@@ -625,8 +625,8 @@ func asf_ping(msg *msg_t) {
 	rsp[2] = 0xff // No ack since it's not required, so we don't do it.
 	rsp[3] = 6    // ASF class
 	binary.LittleEndian.PutUint32(rsp[4:8], ASF_IANA)
-	rsp[8] = 0x40                   // Presense Pong
-	rsp[9] = msg.data[data_start+9] // Message tag
+	rsp[8] = 0x40                  // Presense Pong
+	rsp[9] = msg.data[dataStart+9] // Message tag
 	rsp[10] = 0
 	rsp[11] = 16 // Data length
 	// no special capabilities
@@ -646,5 +646,5 @@ func asf_ping(msg *msg_t) {
 	}
 
 	// Return the response.
-	msg.conn.WriteToUDP(rsp[0:28], msg.remote_addr)
+	msg.conn.WriteToUDP(rsp[0:28], msg.remoteAddr)
 }

@@ -5,29 +5,29 @@
 // Package contains IPMI 2.0 spec protocol definitions
 package ipmigod
 
-func get_chassis_capabilities(msg *msg_t) {
+func getChassisCapabilities(msg *msgT) {
 }
 
-func chassis_control(msg *msg_t) {
+func chassisControl(msg *msgT) {
 }
 
-func chassis_reset(msg *msg_t) {
+func chassisReset(msg *msgT) {
 }
 
-func chassis_identify(msg *msg_t) {
+func chassisIdentify(msg *msgT) {
 }
 
-func set_chassis_capabilities(msg *msg_t) {
+func setChassisCapabilities(msg *msgT) {
 }
 
-func set_power_restore_policy(msg *msg_t) {
+func setPowerRestorePolicy(msg *msgT) {
 }
 
-func get_system_restart_cause(msg *msg_t) {
+func getSystemRestartCause(msg *msgT) {
 }
 
-func set_system_boot_options(msg *msg_t) {
+func setSystemBootOptions(msg *msgT) {
 }
 
-func get_system_boot_options(msg *msg_t) {
+func getSystemBootOptions(msg *msgT) {
 }

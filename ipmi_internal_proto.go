@@ -23,118 +23,117 @@ const (
 
 var debug bool = false
 
-type lanparm_data_t struct {
-	set_in_progress  uint8
-	num_destinations uint8
+type lanparmDataT struct {
+	setInProgress   uint8
+	numDestinations uint8
 
-	ip_addr_src         uint8
-	ip_addr             net.Addr
-	mac_addr            [6]uint8
-	subnet_mask         net.Addr
-	default_gw_ip_addr  net.Addr
-	default_gw_mac_addr [6]uint8
-	backup_gw_ip_addr   net.Addr
-	backup_gw_mac_addr  [6]uint8
+	ipAddrSrc        uint8
+	ipAddr           net.Addr
+	macAddr          [6]uint8
+	subnetMask       net.Addr
+	defaultGwIpAddr  net.Addr
+	defaultGwMacAddr [6]uint8
+	backupGwIpAddr   net.Addr
+	backupGwMacAddr  [6]uint8
 
-	vlan_id                   [2]uint8
-	vlan_priority             uint8
-	num_cipher_suites         uint8
-	cipher_suite_entry        [17]uint8
-	max_priv_for_cipher_suite [9]uint8
+	vlanId                [2]uint8
+	vlanPriority          uint8
+	numCipherSuites       uint8
+	cipherSuiteEntry      [17]uint8
+	maxPrivForCipherSuite [9]uint8
 }
 
-type lanserv_t struct {
-	lan_parms               lanparm_data_t
-	lan_addr                net.Addr
-	lan_addr_set            bool
-	port                    uint16
-	chan_num                uint8
-	chan_priv_limit         uint8
-	chan_priv_allowed_auths [5]uint8
-	active_sessions         uint8
-	next_chall_seq          uint32
-	sid_seq                 uint32
-	default_session_timeout uint32
-	users                   [MAX_USERS + 1]user_t
-	sessions                [MAX_SESSIONS + 1]session_t
+type lanservT struct {
+	lanParms              lanparmDataT
+	lanAddr               net.Addr
+	lanAddrSet            bool
+	port                  uint16
+	chanNum               uint8
+	chanPrivLimit         uint8
+	chanPrivAllowedAuths  [5]uint8
+	activeSessions        uint8
+	nextChallSeq          uint32
+	sidSeq                uint32
+	defaultSessionTimeout uint32
+	users                 [MAX_USERS + 1]userT
+	sessions              [MAX_SESSIONS + 1]sessionT
 }
 
 // For now make this global and make it more
 // modular later.
-var lanserv lanserv_t
+var lanserv lanservT
 
-type user_t struct {
-	valid         bool
-	link_auth     uint8
-	cb_only       uint8
-	username      []uint8
-	pw            []uint8
-	privilege     uint8
-	max_priv      uint8
-	max_sessions  uint8
-	curr_sessions uint8
-	allowed_auths uint16
+type userT struct {
+	valid        bool
+	linkAuth     uint8
+	cbOnly       uint8
+	username     []uint8
+	pw           []uint8
+	privilege    uint8
+	maxPriv      uint8
+	maxSessions  uint8
+	currSessions uint8
+	allowedAuths uint16
 
 	// Set by the user code.
 	idx uint8 // My idx in the table.
 }
 
-func find_user(username []uint8, name_only_lookup bool, priv uint8) *user_t {
-	var found_user *user_t
+func findUser(username []uint8, nameOnlyLookup bool, priv uint8) *userT {
+	var foundUser *userT
 
 	for i := 1; i <= MAX_USERS; i++ {
 		if bytes.Equal(username, lanserv.users[i].username) {
-			if name_only_lookup ||
+			if nameOnlyLookup ||
 				lanserv.users[i].privilege == priv {
-				found_user = &lanserv.users[i]
+				foundUser = &lanserv.users[i]
 				break
 			}
 		}
 	}
 
-	if found_user != nil {
+	if foundUser != nil {
 		if debug {
-			fmt.Println("find_user: ", string(found_user.username))
+			fmt.Println("findUser: ", string(foundUser.username))
 		}
 	}
-	return found_user
+	return foundUser
 }
 
-type session_t struct {
-	active     bool
-	in_startup bool
-	rmcpplus   bool
+type sessionT struct {
+	active    bool
+	inStartup bool
+	rmcpplus  bool
 
 	handle uint32 // My index in the table.
 
-	recv_seq uint32
-	xmit_seq uint32
-	sid      uint32
-	userid   uint8
+	recvSeq uint32
+	xmitSeq uint32
+	sid     uint32
+	userid  uint8
 
-	time_left uint32
+	timeLeft uint32
 
 	/* RMCP data */
 	authtype uint8
 	//authdata ipmi_authdata_t
 
 	/* RMCP+ data */
-	unauth_recv_seq uint32
-	unauth_xmit_seq uint32
-	rem_sid         uint32
-	auth            uint8
-	conf            uint8
-	integ           uint
-
-	priv     uint8
-	max_priv uint8
+	unauthRecvSeq uint32
+	unauthXmitSeq uint32
+	remSid        uint32
+	auth          uint8
+	conf          uint8
+	integ         uint
+	priv          uint8
+	maxPriv       uint8
 }
 
-type msg_t struct {
-	src_addr interface{}
-	src_len  int
+type msgT struct {
+	srcAddr interface{}
+	srcLen  int
 
-	oem_data int64 /* For use by OEM handlers.  This will be set to
+	oemData int64 /* For use by OEM handlers.  This will be set to
 	   zero by the calling code. */
 
 	channel uint8
@@ -148,28 +147,28 @@ type msg_t struct {
 		hdr struct {
 			version  uint8
 			reserved uint8
-			rmcp_seq uint8
+			rmcpSeq  uint8
 			class    uint8
 		}
 
 		// IPMI Session layer
 		session struct {
-			auth_type    uint8
-			seq          uint32
-			sid          uint32
-			auth_code    [16]uint8
-			payload_lgth uint8
+			authType    uint8
+			seq         uint32
+			sid         uint32
+			authCode    [16]uint8
+			payloadLgth uint8
 		}
 
 		// IPMI Message layer
 		message struct {
-			rs_addr uint8
-			netfn   uint8
-			rs_lun  uint8
-			rq_addr uint8
-			rq_seq  uint8
-			rq_lun  uint8
-			cmd     uint8
+			rsAddr uint8
+			netfn  uint8
+			rsLun  uint8
+			rqAddr uint8
+			rqSeq  uint8
+			rqLun  uint8
+			cmd    uint8
 		}
 	}
 	// Not yet supported
@@ -179,68 +178,46 @@ type msg_t struct {
 		encrypted     uint8
 		authenticated uint8
 		iana          [3]uint8
-		payload_id    uint16
+		payloadId     uint16
 		authdata      *uint8
-		authdata_len  uint
+		authdataLen   uint
 	}
 
-	conn        *net.UDPConn
-	remote_addr *net.UDPAddr
-	data        [4000]uint8
-	data_start  uint
-	data_len    uint
+	conn       *net.UDPConn
+	remoteAddr *net.UDPAddr
+	data       [4000]uint8
+	dataStart  uint
+	dataLen    uint
 
 	iana uint32
 }
 
-type rsp_msg_data_t struct {
-	netfn    uint8
-	cmd      uint8
-	data_len uint16
-	data     [1000]uint8
+type rspMsgDataT struct {
+	netfn   uint8
+	cmd     uint8
+	dataLen uint16
+	data    [1000]uint8
 }
 
-type auth_data_t struct {
-	rand         [16]byte
-	rem_rand     [16]byte
-	role         byte
-	username_len byte
-	username     [16]byte
-	sik          [20]byte
-	k1           [20]byte
-	k2           [20]byte
-	akey_len     byte
-	integ_len    uint
-	adata        interface{}
-	akey         interface{}
-	ikey_len     uint
-	idata        interface{}
-	ikey         interface{}
-	ikey2        interface{}
-	ckey_len     uint
-	cdata        interface{}
-	ckey         interface{}
-}
-
-func ipmi_checksum(data []uint8, size int, start int8) int8 {
+func ipmiChecksum(data []uint8, size int, start int8) int8 {
 	csum := start
 
-	for data_idx := 0; size > 0; size-- {
-		csum += int8(data[data_idx])
-		data_idx++
+	for dataIdx := 0; size > 0; size-- {
+		csum += int8(data[dataIdx])
+		dataIdx++
 	}
 
 	return -csum
 }
 
-func sid_to_session(sid uint32) *session_t {
+func sidToSession(sid uint32) *sessionT {
 	var (
 		idx     uint32
-		session *session_t
+		session *sessionT
 	)
 
 	if debug {
-		fmt.Printf("sid_to_session: %x\n", sid)
+		fmt.Printf("sidToSession: %x\n", sid)
 	}
 	if sid&1 == 1 {
 		return nil
