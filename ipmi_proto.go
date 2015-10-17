@@ -8,7 +8,7 @@ package ipmigod
 import (
 	"encoding/binary"
 	"fmt"
-	. "github.com/platinasystems/goes/cli"
+	_ "github.com/platinasystems/goes/cli"
 	"log"
 	"net"
 )
@@ -66,16 +66,6 @@ func ipmiLanInit() {
 }
 
 func init() {
-	// goes setup
-	Command.Set("ipmigod", Usage("ipmigod [OPTIONS]..."))
-	Command.Set("ipmigod", Apropos("ipmigod daemon"))
-	Command.Set("ipmigod", Options{
-		"-background": Flag{},
-	})
-	Command.Set("ipmigod", func(_ *Context, _ ...string) {
-		ipmigodMain()
-	})
-
 	// daemon setup
 	// Do startup initialization for daemon
 	//  - replaces lan config file and emu config file
@@ -97,7 +87,7 @@ func init() {
 	// Initialize persistence database
 }
 
-func ipmigodMain() {
+func Main() {
 
 	// Listen on UDP port 623 on all interfaces.
 	serverAddr, err := net.ResolveUDPAddr("udp", ":623")
