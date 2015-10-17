@@ -67,14 +67,12 @@ func ipmiLanInit() {
 
 func init() {
 	// goes setup
-	const name = "ipmigod"
-	Apropos.Set(name, `ipmigod daemon`)
-
-	//Complete.Set(name, complete)
-	//Help.Set(name, help)
-	Usage.Set(name, `ipmigod [OPTIONS]...`)
-	CommandFlags.Set("ipmigod", []string{"-background"})
-	Command.Set(name, func(_ *Context, _ ...string) {
+	Command.Set("ipmigod", Usage("ipmigod [OPTIONS]..."))
+	Command.Set("ipmigod", Apropos("ipmigod daemon"))
+	Command.Set("ipmigod", Options{
+		"-background": Flag{},
+	})
+	Command.Set("ipmigod", func(_ *Context, _ ...string) {
 		ipmigodMain()
 	})
 
