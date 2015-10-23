@@ -8,6 +8,7 @@ package ipmigod
 import (
 	"encoding/binary"
 	"fmt"
+	"time"
 )
 
 const (
@@ -137,8 +138,53 @@ func getSdr(msg *msgT) {
 	msg.returnRspData(nil, data[0:], uint(count+3))
 }
 
-func addSdrCmd(msg *msgT) {
-	fmt.Println("storageNetfn not supported", msg.rmcp.message.cmd)
+func newSdrEntry(length uint8) *sdrT {
+
+	newSdr := new(sdrT)
+	if newSdr == nil {
+		return nil
+	}
+	newSdr.recordId = mc.mainSdrs.nextFreeEntryId
+	mc.mainSdrs.nextFreeEntryId++
+	newSdr.length = length + 5
+
+	binary.LittleEndian.PutUint16(newSdr.data[:2], newSdr.recordId)
+
+	return newSdr
+}
+
+func addSdrEntry(newSdr *sdrT) {
+	if mc.mainSdrs.sdrs == nil {
+		mc.mainSdrs.sdrs = newSdr
+	} else {
+		mc.mainSdrs.tailSdr.next = newSdr
+	}
+	mc.mainSdrs.tailSdr = newSdr
+	now := time.Now()
+	nowUnix := uint32(now.Unix())
+	mc.sel.lastAddTime = nowUnix
+	mc.mainSdrs.sdrCount++
+}
+
+func addSdr(msg *msgT) {
+	var (
+		data [3]uint8
+	)
+
+	dataStart := msg.dataStart
+	entry := newSdrEntry(msg.data[dataStart+5])
+	if entry == nil {
+		msg.returnErr(nil, IPMI_OUT_OF_SPACE_CC)
+		return
+	}
+	addSdrEntry(entry)
+
+	copy(entry.data[2:2+entry.length],
+		msg.data[dataStart+2:dataStart+2+uint(entry.length)])
+
+	data[0] = 0
+	binary.LittleEndian.PutUint16(data[1:3], entry.recordId)
+	msg.returnRspData(nil, data[0:3], 3)
 }
 
 func partialAddSdr(msg *msgT) {
@@ -150,7 +196,47 @@ func deleteSdr(msg *msgT) {
 }
 
 func clearSdrRepository(msg *msgT) {
-	fmt.Println("storageNetfn not supported", msg.rmcp.message.cmd)
+	var entry, n_entry *sdrT
+
+	var data [2]uint8
+	dataStart := msg.dataStart
+	reservation :=
+		binary.LittleEndian.Uint16(msg.data[dataStart : dataStart+2])
+	if (reservation != 0) && (reservation != mc.mainSdrs.reservation) {
+		msg.returnErr(nil, IPMI_INVALID_RESERVATION_CC)
+		return
+	}
+
+	if (msg.data[dataStart+2] != 'C') ||
+		(msg.data[dataStart+3] != 'L') ||
+		(msg.data[dataStart+4] != 'R') {
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
+		return
+	}
+
+	op := msg.data[dataStart+5]
+	if op != 0 && op != 0xaa {
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
+		return
+	}
+
+	data[0] = 0
+	data[1] = 1
+	if op == 0xaa {
+		entry = mc.mainSdrs.sdrs
+		for entry != nil {
+			n_entry = entry.next
+			// free implicit - garbage collector should free
+			entry = n_entry
+		}
+		mc.mainSdrs.sdrs = nil
+		mc.mainSdrs.tailSdr = nil
+		now := time.Now()
+		nowUnix := uint32(now.Unix())
+		mc.mainSdrs.lastEraseTime = nowUnix
+	}
+
+	msg.returnRspData(nil, data[0:2], 2)
 }
 
 func getSdrRepositoryTime(msg *msgT) {
@@ -174,7 +260,17 @@ func runInitializationAgent(msg *msgT) {
 }
 
 func getSelInfo(msg *msgT) {
-	fmt.Println("storageNetfn not supported", msg.rmcp.message.cmd)
+	var data [15]uint8
+
+	data[1] = 0x51
+	binary.LittleEndian.PutUint16(data[2:4], mc.sel.count)
+	binary.LittleEndian.PutUint16(data[4:6],
+		(mc.sel.maxCount-mc.sel.count)*16)
+	binary.LittleEndian.PutUint32(data[6:10], mc.sel.lastAddTime)
+	binary.LittleEndian.PutUint32(data[10:14], mc.sel.lastEraseTime)
+	data[14] = mc.sel.flags
+
+	msg.returnRspData(nil, data[0:15], 15)
 }
 
 func getSelAllocationInfo(msg *msgT) {
@@ -182,15 +278,107 @@ func getSelAllocationInfo(msg *msgT) {
 }
 
 func reserveSel(msg *msgT) {
-	fmt.Println("storageNetfn not supported", msg.rmcp.message.cmd)
+
+	var data [3]uint8
+
+	mc.sel.reservation++
+	if mc.sel.reservation == 0 {
+		mc.sel.reservation++
+	}
+
+	data[0] = 0
+	binary.LittleEndian.PutUint16(data[1:3], mc.sel.reservation)
+
+	msg.returnRspData(nil, data[0:3], 3)
 }
 
 func getSelEntry(msg *msgT) {
-	fmt.Println("storageNetfn not supported", msg.rmcp.message.cmd)
+	var (
+		nextRecordId uint16
+		entry        selEntryT
+		data         [19]uint8
+	)
+
+	dataStart := msg.dataStart
+	reservation :=
+		binary.LittleEndian.Uint16(msg.data[dataStart : dataStart+2])
+	if (reservation != 0) && (reservation != mc.sel.reservation) {
+		msg.returnErr(nil, IPMI_INVALID_RESERVATION_CC)
+		return
+	}
+
+	recordId :=
+		binary.LittleEndian.Uint16(msg.data[dataStart+2 : dataStart+4])
+	offset := msg.data[dataStart+4]
+	count := msg.data[dataStart+5]
+
+	if offset >= 16 {
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
+		return
+	}
+
+	if mc.sel.count == 0 {
+		msg.returnErr(nil, IPMI_NOT_PRESENT_CC)
+		return
+	}
+
+	// record id of 0 means 1st one in sel; 0xFF means last.
+	if recordId == 0 {
+		entry = mc.sel.entries[0] // 0th entry is valid
+		if mc.sel.count-1 > 0 {
+			nextRecordId = 2
+		} else {
+			nextRecordId = 0xffff
+		}
+	} else if recordId == 0xffff {
+		entry = mc.sel.entries[mc.sel.count-1]
+		nextRecordId = 0xffff
+	} else {
+		for i := range mc.sel.entries {
+			if mc.sel.entries[i].recordId == recordId {
+				entry = mc.sel.entries[i]
+				if i+1 >= int(mc.sel.count) {
+					nextRecordId = 0xffff
+				} else {
+					nextRecordId = uint16(i + 2)
+				}
+				break
+			}
+		}
+	}
+
+	// Nothing found ?
+	if entry.recordId == 0 {
+		msg.returnErr(nil, IPMI_NOT_PRESENT_CC)
+		return
+	}
+
+	data[0] = 0
+	binary.LittleEndian.PutUint16(data[1:3], nextRecordId)
+
+	if (offset + count) > 16 {
+		count = 16 - offset
+	}
+	copy(data[3:], entry.data[offset:offset+count])
+	retLen := count + 3
+	msg.returnRspData(nil, data[0:retLen], uint(retLen))
+
 }
 
 func addSelEntry(msg *msgT) {
-	fmt.Println("storageNetfn not supported", msg.rmcp.message.cmd)
+	var data [19]uint8
+
+	dataStart := msg.dataStart
+	err, r := addToSel(msg.data[dataStart+2],
+		msg.data[dataStart+3:dataStart+16])
+	if err != 0 {
+		msg.returnErr(nil, uint8(err))
+		return
+	} else {
+		data[0] = 0
+		binary.LittleEndian.PutUint16(data[1:3], r)
+	}
+	msg.returnRspData(nil, data[0:3], 3)
 }
 
 func partialAddSelEntry(msg *msgT) {
@@ -202,7 +390,44 @@ func deleteSelEntry(msg *msgT) {
 }
 
 func clearSel(msg *msgT) {
-	fmt.Println("storageNetfn not supported", msg.rmcp.message.cmd)
+
+	var data [2]uint8
+	dataStart := msg.dataStart
+	reservation :=
+		binary.LittleEndian.Uint16(msg.data[dataStart : dataStart+2])
+	if (reservation != 0) && (reservation != mc.sel.reservation) {
+		msg.returnErr(nil, IPMI_INVALID_RESERVATION_CC)
+		return
+	}
+
+	if (msg.data[dataStart+2] != 'C') ||
+		(msg.data[dataStart+3] != 'L') ||
+		(msg.data[dataStart+4] != 'R') {
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
+		return
+	}
+
+	op := msg.data[dataStart+5]
+	if op != 0 && op != 0xaa {
+		msg.returnErr(nil, IPMI_INVALID_DATA_FIELD_CC)
+		return
+	}
+
+	data[0] = 0
+	data[1] = 1
+	if op == 0xaa {
+		mc.sel.entries = nil
+		// nil'ing causes capacity to go to 0 so remake
+		mc.sel.entries = make([]selEntryT, mc.sel.maxCount)
+
+		now := time.Now()
+		nowUnix := uint32(now.Unix())
+		mc.sel.lastEraseTime = nowUnix
+		// Clear the overflow flag.
+		mc.sel.flags &^= 0x80
+	}
+
+	msg.returnRspData(nil, data[0:2], 2)
 }
 
 func getSelTime(msg *msgT) {

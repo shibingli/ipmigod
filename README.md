@@ -23,23 +23,59 @@ Architecture Notes:
   to avoid a polling regimen. This will aid in keeping remote controller
   and network load to a minimum in the context of large data-centers with 
   many switches. This is the so-called push scheme. Of course, with the 
-  support of IPMI protocol, remote controllers can pull switch data at any time.
+  support of IPMI protocol, remote controllers can pull switch data at any 
+  time.
+- Distributed implememntation for IPMI
+  
+                           +--------+
+                           | MM-BMC |
+                           |        |
+                           +--------+
+                             |    |
+                             /    \
+                            /      \
+                      +--------+  +--------+
+                      | LC1-BMC|  | LC2-BMC|
+                      |        |  |        |
+                      +--------+  +--------+
 
+      MM-BMC is the central aggregator of IPMI state for linecard BMCs
+      in a chassis. When SDRs or SELs are created on a linecard, add
+      transaction IPMI messages are sent to the MM so it can reflect
+      the new state. Periodic poll routines at the MM will obtain sensor
+      values from appropriate LCs. Similarly, value changes to these
+      LC sensors will be relayed from the MM to the appropriate LC sensors.
+      In this way, external remote agents can deal with just the MM IPMI
+      entity to control/interrogate state for the whole chassis.
+
+      Taking SDRs as an example - when LC1 creates an SDR for a sensor,
+      LC1 will send an add-sdr message to MM which will create an SDR that
+      proxies for LC1's sensor. When that SDR is polled to update its value
+      by MM, a get-sensor-reading message will be sent to LC1 and the
+      resultant value will update the MM's SDR. When an external IPMI agent
+      sends a get-sensor-reading request to the MM for this sensor the
+      LC1's value will be returned from the SDR.
+ 
 Todo (in priority order):
 - Sensor polling support from target sysclass fs
-- Logging support (SEL) - can we replace with remote syslog ?
+  	 (simulate inline)       [done]
+  	 (simulate with files)
+	 (on real hw from sysfs)
+- Logging support (SEL)
+- Request calls (i.e. freeipmi functionality) to test MM-LC comms
 - LAN alerts via PET ? snmpd ?
 - Other functions required for white box switch eg cold-reset,
   warm-reset, manufacturing-test
-- Internal syslog support (package log/syslog integration)
 - Add timestamp support for sdrs
+- Reimplement linkedlist for SDRs with slices
 - Persistence support? (at the least some historical record of readings)
-  (this is not part of IPMI so this could be displayed via http)
+  (this is not part of IPMI so this could be displayed via http) [defer]
 - Straight authentication functionality? IPMI also offers MD2 and MD5
   but both of these are not considered secure. It is debatable whether
   straight password offers any better security for IPMI sessions. It
   is probably best to ensure security by physical access means i.e
-  make sure ipmi lan segments are not exposed outside of trusted networks.
+  make sure ipmi lan segments are not exposed outside of 
+  trusted networks. [defer]
 - Daemonize ipmigod with double-fork (should be in goes) [done]
 - Simulation vs real-target flags [done]
 - ASF ping support [done]

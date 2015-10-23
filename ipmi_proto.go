@@ -521,7 +521,7 @@ var storageProcessors = map[uint8]storageProcessor{
 	GET_SDR_REPOSITORY_ALLOC_INFO_CMD: getSdrRepositoryAllocInfo,
 	RESERVE_SDR_REPOSITORY_CMD:        reserveSdrRepository,
 	GET_SDR_CMD:                       getSdr,
-	ADD_SDR_CMD:                       addSdrCmd,
+	ADD_SDR_CMD:                       addSdr,
 	PARTIAL_ADD_SDR_CMD:               partialAddSdr,
 	DELETE_SDR_CMD:                    deleteSdr,
 	CLEAR_SDR_REPOSITORY_CMD:          clearSdrRepository,

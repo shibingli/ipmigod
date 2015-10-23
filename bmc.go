@@ -8,6 +8,7 @@ package ipmigod
 import (
 	"encoding/binary"
 	"fmt"
+	"time"
 )
 
 // Used for artificial qemu environment
@@ -37,13 +38,14 @@ const (
 type sdrT struct {
 	recordId uint16
 	length   uint8
-	data     [76]uint8
+	data     [76]uint8 // FIXME - change to 64 and retest
 	next     *sdrT
 }
 
-type sdrs_t struct {
+type sdrsT struct {
 	reservation     uint16
 	sdrCount        uint16
+	maxSdrCount     uint16
 	sensorCount     uint16
 	lastAddTime     uint32
 	lastEraseTime   uint32
@@ -56,6 +58,23 @@ type sdrs_t struct {
 
 }
 
+type selEntryT struct {
+	recordId uint16
+	data     [16]uint8
+}
+
+type selT struct {
+	entries       []selEntryT // starts at recordId of 1 (not 0)
+	count         uint16
+	maxCount      uint16
+	lastAddTime   uint32
+	lastEraseTime uint32
+	flags         uint8
+	reservation   uint16
+	nextEntry     uint16
+	lastEntry     uint16
+}
+
 type mcT struct {
 	bmcIpmb        uint8 // address of bmc
 	deviceId       uint8
@@ -66,7 +85,8 @@ type mcT struct {
 	deviceSupport  uint8
 	mfgId          [3]uint8
 	productId      [2]uint8
-	mainSdrs       sdrs_t
+	sel            selT
+	mainSdrs       sdrsT
 	sensors        [4][255]*sensorT
 }
 
@@ -89,6 +109,11 @@ func bmcInit() {
 	mc.productId[1] = 0
 
 	mc.mainSdrs.flags = IPMI_SDR_RESERVE_SDR_SUPPORTED
+	mc.mainSdrs.maxSdrCount = 2000
+	mc.mainSdrs.nextFreeEntryId = 1
+
+	mc.sel.maxCount = 1000
+	mc.sel.nextEntry = 1
 
 	// Initially this is a simulated set of sensors.
 	// In production, a similar scheme could be used or
@@ -138,6 +163,21 @@ func bmcInit() {
 			0, 0x28, 0x50, 0x32, 0x46, 0x3C, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0xC9,
 			sensorName4)
+
+		// Add an event log to sel for sensor 1
+		selRecord := []uint8{0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
+			0x00, 0x20, 0x00, 0x04, 0x01, 0x01, 0x01, 0x00,
+			0x00, 0x00}
+		addToSel(2, selRecord)
+
+		// Add a 2nd event log to sel for sensor 1
+		selRecord[12] = 0x02
+		addToSel(2, selRecord)
+
+		// Add a 3rd event log to sel for sensor 1
+		selRecord[12] = 0x03
+		addToSel(2, selRecord)
+
 	} else {
 		// Do a dynamic discovery of sensors based on sysclass
 		// filesystem nodes.
@@ -180,16 +220,16 @@ func mainSdrAdd(bmc uint8, recordId uint16, sdrVers uint8,
 	oem uint8, idStrLghtCode uint8, idStr []uint8) {
 
 	// Range check the list
-	if mc.mainSdrs.nextFreeEntryId == 0xffff {
-		fmt.Println("main_sdrs are full!")
+	if mc.mainSdrs.nextFreeEntryId >= mc.mainSdrs.maxSdrCount {
+		fmt.Println("mainSdrs are full!")
 		return
 	}
 
 	// Obtain and initialize new sdr entry
 	newSdr := new(sdrT)
-	mc.mainSdrs.nextFreeEntryId++
 	newSdr.recordId = mc.mainSdrs.nextFreeEntryId
-	newSdr.length = 48 + uint8(idStrLghtCode&0x1F)
+	mc.mainSdrs.nextFreeEntryId++
+	newSdr.length = 48 + uint8(idStrLghtCode&0x1F) + 5
 
 	// Serialize SDR record into newSdr's data
 	binary.LittleEndian.PutUint16(newSdr.data[0:2], newSdr.recordId)
@@ -246,9 +286,79 @@ func mainSdrAdd(bmc uint8, recordId uint16, sdrVers uint8,
 		mc.mainSdrs.tailSdr.next = newSdr
 	}
 	mc.mainSdrs.tailSdr = newSdr
+	now := time.Now()
+	nowUnix := uint32(now.Unix())
+	mc.sel.lastAddTime = nowUnix
 	mc.mainSdrs.sdrCount++
+}
 
-	// Update time fields
+func findSelEventByRecid(recordId uint16) *selEntryT {
 
-	// Add support for persistence database
+	var entry *selEntryT
+	for i := range mc.sel.entries {
+		if mc.sel.entries[i].recordId == recordId {
+			entry = &mc.sel.entries[i]
+			break
+		}
+	}
+	return entry
+}
+
+func addToSel(recordType uint8, recordData []uint8) (err, recordId uint16) {
+	if mc.sel.count >= mc.sel.maxCount {
+		mc.sel.flags |= 0x80
+		return IPMI_OUT_OF_SPACE_CC, 0
+	}
+
+	e := new(selEntryT)
+	if e == nil {
+		return IPMI_UNKNOWN_ERR_CC, 0
+	}
+
+	// Find a new unique record-id - take care of the
+	// case where the log has wrapped and record_ids are out of order
+	// (from deletes) and so nextEntry may not be unique anymore
+	// NB: We jump index 0 since it's invalid
+	e.recordId = mc.sel.nextEntry
+	mc.sel.nextEntry++
+	startRecordId := e.recordId
+	for mc.sel.nextEntry == 0 ||
+		findSelEventByRecid(e.recordId) != nil {
+		e.recordId = mc.sel.nextEntry
+		mc.sel.nextEntry++
+		if e.recordId == startRecordId {
+			return IPMI_OUT_OF_SPACE_CC, 0
+		}
+	}
+
+	now := time.Now()
+	if debug {
+		fmt.Println("Time now:", now, "Unix time", now.Unix())
+	}
+	nowUnix := uint32(now.Unix())
+
+	binary.LittleEndian.PutUint16(e.data[0:2], e.recordId)
+	e.data[2] = recordType
+	// For lower record types set timestamp
+	if recordType < 0xe0 {
+		binary.LittleEndian.PutUint32(e.data[3:7], nowUnix)
+		copy(e.data[7:], recordData[7:])
+	} else {
+		copy(e.data[3:], recordData[3:])
+	}
+
+	// Add to entries slice
+	mc.sel.entries = append(mc.sel.entries, *e)
+	mc.sel.count++
+	mc.sel.lastAddTime = nowUnix
+
+	if debug {
+		fmt.Printf("sel added record %d data %v\n",
+			e.recordId, e.data[:])
+		for i := 0; i < int(mc.sel.count); i++ {
+			e := mc.sel.entries[i]
+			fmt.Printf("sel[%d]: record_id: %d\n", i, e.recordId)
+		}
+	}
+	return 0, e.recordId
 }
