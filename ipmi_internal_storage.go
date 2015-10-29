@@ -183,6 +183,9 @@ func addSdr(msg *msgT) {
 
 	// Points directly into full SDR record data
 	dataStart := msg.dataStart
+	lun := msg.data[dataStart+6]
+	sensNum := msg.data[dataStart+7]
+	value := msg.data[dataStart+46]
 
 	// If oem field is 0 we have a regular addSdr otherwise
 	// it's really a sensor value update
@@ -192,7 +195,15 @@ func addSdr(msg *msgT) {
 				msg.data[0:msg.dataLen])
 		}
 
-		// FXME - add a check for duplicate SDRs
+		// check for duplicate SDRs
+		entry = mc.mainSdrs.sdrs
+		for entry != nil {
+			if entry.lun == lun &&
+				entry.sensNum == sensNum {
+				return
+			}
+			entry = entry.next
+		}
 
 		entry = newSdrEntry(msg.data[dataStart+4])
 		if entry == nil {
@@ -220,9 +231,6 @@ func addSdr(msg *msgT) {
 		}
 
 		// Find sdr entry in local SDR database and update its value
-		lun := msg.data[dataStart+6]
-		sensNum := msg.data[dataStart+7]
-		value := msg.data[dataStart+46]
 		entry = mc.mainSdrs.sdrs
 		for entry != nil {
 			if entry.lun == lun &&

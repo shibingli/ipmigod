@@ -190,17 +190,17 @@ func bmcInit() {
 			0, 0, 0, 0, 0, 0, 0, 0xCA,
 			sensorName4)
 
-		// Add an event log to sel for sensor 1
+		// Add an event log to sel for sensor 17
 		selRecord := []uint8{0x01, 0x00, 0x02, 0x00, 0x00, 0x00,
-			0x00, 0x20, 0x00, 0x04, 0x01, 0x01, 0x01, 0x00,
+			0x00, 0x20, 0x00, 0x04, 0x01, 0x11, 0x01, 0x00,
 			0x00, 0x00}
 		addToSel(2, selRecord)
 
-		// Add a 2nd event log to sel for sensor 1
+		// Add a 2nd event log to sel for sensor 17
 		selRecord[12] = 0x02
 		addToSel(2, selRecord)
 
-		// Add a 3rd event log to sel for sensor 1
+		// Add a 3rd event log to sel for sensor 17
 		selRecord[12] = 0x03
 		addToSel(2, selRecord)
 
