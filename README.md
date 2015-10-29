@@ -42,32 +42,32 @@ Architecture Notes:
       MM-BMC is the central aggregator of IPMI state for linecard BMCs
       in a chassis. When SDRs or SELs are created on a linecard, add
       transaction IPMI messages are sent to the MM so it can reflect
-      the new state. Periodic poll routines at the MM will obtain sensor
-      values from appropriate LCs. Similarly, value changes to these
-      LC sensors will be relayed from the MM to the appropriate LC sensors.
+      the new state. Periodic poll routines at the LCs will push new
+      values to MM.
       In this way, external remote agents can deal with just the MM IPMI
       entity to control/interrogate state for the whole chassis.
+      For convenience, it is also possible for the remote agent to deal
+      directly with each LC's IPMI implementation to query that LC's
+      sensors.
 
       Taking SDRs as an example - when LC1 creates an SDR for a sensor,
       LC1 will send an add-sdr message to MM which will create an SDR that
-      proxies for LC1's sensor. When that SDR is polled to update its value
-      by MM, a get-sensor-reading message will be sent to LC1 and the
-      resultant value will update the MM's SDR. When an external IPMI agent
-      sends a get-sensor-reading request to the MM for this sensor the
-      LC1's value will be returned from the SDR.
+      proxies for LC1's sensor. When LC1 updates that sensor with a timed
+      poll, a message is sent to MM to update the SDR representing that
+      sensor.
  
 Todo (in priority order):
 - Sensor polling support from target sysclass fs
   	 (simulate inline)       [done]
   	 (simulate with files)
 	 (on real hw from sysfs)
-- Logging support (SEL)
-- Request calls (i.e. freeipmi functionality) to test MM-LC comms
 - LAN alerts via PET ? snmpd ?
 - Other functions required for white box switch eg cold-reset,
   warm-reset, manufacturing-test
-- Add timestamp support for sdrs
-- Reimplement linkedlist for SDRs with slices
+- Distribution of SELs
+- Distribution of SDRs and sensor readings between LC and MM [done]
+- Add timestamp support for sdrs [done]
+- Logging support (SEL) [done]
 - Persistence support? (at the least some historical record of readings)
   (this is not part of IPMI so this could be displayed via http) [defer]
 - Straight authentication functionality? IPMI also offers MD2 and MD5
