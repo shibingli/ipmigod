@@ -109,6 +109,9 @@ func getSdr(msg *msgT) {
 		return
 	}
 
+	if debug {
+		fmt.Println("getSdr: ", recordId, offset, entry.length)
+	}
 	if offset >= entry.length {
 		fmt.Println("getSdr: offset out of range")
 		msg.returnErr(nil, IPMI_PARAMETER_OUT_OF_RANGE_CC)
@@ -148,7 +151,10 @@ func newSdrEntry(length uint8) *sdrT {
 	mc.mainSdrs.nextFreeEntryId++
 	newSdr.length = length + 5
 
-	binary.LittleEndian.PutUint16(newSdr.data[:2], newSdr.recordId)
+	// Have to update record data to reflect local MM state
+	if chassisCardNum == 0 {
+		binary.LittleEndian.PutUint16(newSdr.data[:2], newSdr.recordId)
+	}
 
 	return newSdr
 }
@@ -159,6 +165,9 @@ func addSdrEntry(newSdr *sdrT) {
 	} else {
 		mc.mainSdrs.tailSdr.next = newSdr
 	}
+	if debug {
+		fmt.Println("addSdrEntry: ", newSdr.recordId)
+	}
 	mc.mainSdrs.tailSdr = newSdr
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
@@ -168,23 +177,69 @@ func addSdrEntry(newSdr *sdrT) {
 
 func addSdr(msg *msgT) {
 	var (
-		data [3]uint8
+		data  [3]uint8
+		entry *sdrT
 	)
 
+	// Points directly into full SDR record data
 	dataStart := msg.dataStart
-	entry := newSdrEntry(msg.data[dataStart+5])
-	if entry == nil {
-		msg.returnErr(nil, IPMI_OUT_OF_SPACE_CC)
-		return
+
+	// If oem field is 0 we have a regular addSdr otherwise
+	// it's really a sensor value update
+	if msg.data[dataStart+46] == 0 {
+		if debug {
+			fmt.Printf("Received addSdr: % x\n",
+				msg.data[0:msg.dataLen])
+		}
+
+		// FXME - add a check for duplicate SDRs
+
+		entry = newSdrEntry(msg.data[dataStart+4])
+		if entry == nil {
+			msg.returnErr(nil, IPMI_OUT_OF_SPACE_CC)
+			return
+		}
+		// Update Sensor number from msg
+		entry.sensNum = msg.data[dataStart+7]
+		copy(entry.data[2:2+entry.length],
+			msg.data[dataStart+2:dataStart+2+uint(entry.length)])
+		entry.enabled = true
+		entry.eventsEnabled = true
+		entry.scanningEnabled = true
+		entry.eventStatus = 0
+
+		addSdrEntry(entry)
+
+		data[0] = 0
+		binary.LittleEndian.PutUint16(data[1:3], entry.recordId)
+		msg.returnRspData(nil, data[0:3], 3)
+	} else {
+		if debug {
+			fmt.Printf("Received special addSdr: % x\n",
+				msg.data[0:msg.dataLen])
+		}
+
+		// Find sdr entry in local SDR database and update its value
+		lun := msg.data[dataStart+6]
+		sensNum := msg.data[dataStart+7]
+		value := msg.data[dataStart+46]
+		entry = mc.mainSdrs.sdrs
+		for entry != nil {
+			if entry.lun == lun &&
+				entry.sensNum == sensNum {
+				entry.value = value
+				break
+			}
+			entry = entry.next
+		}
+
+		if entry != nil {
+			data[0] = 0
+			binary.LittleEndian.PutUint16(data[1:3],
+				entry.recordId)
+			msg.returnRspData(nil, data[0:3], 3)
+		}
 	}
-	addSdrEntry(entry)
-
-	copy(entry.data[2:2+entry.length],
-		msg.data[dataStart+2:dataStart+2+uint(entry.length)])
-
-	data[0] = 0
-	binary.LittleEndian.PutUint16(data[1:3], entry.recordId)
-	msg.returnRspData(nil, data[0:3], 3)
 }
 
 func partialAddSdr(msg *msgT) {

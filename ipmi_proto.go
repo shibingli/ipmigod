@@ -17,6 +17,37 @@ const (
 	MAX_MSG_RETURN_DATA = 1000
 )
 
+var service string = "10.0.0.3:623"
+var chassisCardNum uint8
+
+// Open a UDP/IPMI connection as a client to configured MM-BMC IP-addr
+// and run through a sequence of well-known setup calls
+// This connection is cached for further use by SDR
+// transactions.
+func ipmiMMConnect() error {
+
+	var err error
+
+	// Do the UDP paperwork
+	mc.mmConn, err = net.Dial("udp", service)
+
+	if err != nil {
+		fmt.Println("Could not resolve udp address or connect on ",
+			service)
+		fmt.Println(err)
+		return err
+	}
+
+	if debug {
+		fmt.Println("Connected to server at ", service)
+	}
+
+	// Walk the simple state table to send successful sequence
+	// of ipmi requests.
+	ipmiEstablishSession(mc.mmConn)
+	return nil
+}
+
 func ipmiLanInit() {
 
 	// Initialize user database for straight authentication
@@ -62,7 +93,6 @@ func ipmiLanInit() {
 	for i := 1; i < MAX_SESSIONS+1; i++ {
 		lanserv.sessions[i].handle = uint32(i)
 	}
-
 }
 
 func init() {
@@ -80,14 +110,24 @@ func init() {
 	// guid a123456789abcdefa123456789abcdef
 	//  user 2 true  "ipmiusr" "test" admin    10 none md2 md5 straight
 	ipmiLanInit()
+}
+
+func Main(mmCardMode bool, cardNum int) {
+
+	chassisCardNum = uint8(cardNum)
+	fmt.Println("mmCard", mmCardMode, "cardNum", chassisCardNum)
+
+	if mmCardMode == false {
+		err := ipmiMMConnect()
+		if err != nil {
+			// Catastrophic really
+			fmt.Println("ipmiMMConnect returned", err)
+			panic("Problem initializing UDP channel to MM")
+		}
+	}
 
 	// Initialize BMC SDRs/Sensors
 	bmcInit()
-
-	// Initialize persistence database
-}
-
-func Main() {
 
 	// Listen on UDP port 623 on all interfaces.
 	serverAddr, err := net.ResolveUDPAddr("udp", ":623")

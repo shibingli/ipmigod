@@ -8,6 +8,7 @@ package ipmigod
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
 	"time"
 )
 
@@ -36,10 +37,17 @@ const (
 )
 
 type sdrT struct {
-	recordId uint16
-	length   uint8
-	data     [76]uint8 // FIXME - change to 64 and retest
-	next     *sdrT
+	recordId        uint16
+	lun             uint8
+	sensNum         uint8
+	length          uint8
+	enabled         bool
+	eventsEnabled   bool
+	scanningEnabled bool
+	eventStatus     uint16
+	value           uint8
+	data            [64]uint8
+	next            *sdrT
 }
 
 type sdrsT struct {
@@ -85,6 +93,7 @@ type mcT struct {
 	deviceSupport  uint8
 	mfgId          [3]uint8
 	productId      [2]uint8
+	mmConn         net.Conn
 	sel            selT
 	mainSdrs       sdrsT
 	sensors        [4][255]*sensorT
@@ -93,6 +102,9 @@ type mcT struct {
 var mc mcT
 
 func bmcInit() {
+
+	var sensorNum uint8
+
 	// Initialize the bmc
 	mc.bmcIpmb = 0x20
 	mc.deviceId = 0
@@ -120,48 +132,62 @@ func bmcInit() {
 	// perhaps a more dynamic scheme where the sysclass fs is
 	// scanned to gather these params.
 	if simulate {
+		var sensorName1, sensorName2, sensorName3, sensorName4 []uint8
+
 		// sensor 1 - temp
-		sensorAdd(0x20, 0, 1, 1, 1)
-		sensorName1 := []uint8{'D', 'J', 't', 'e', 'm', 'p'}
-		mainSdrAdd(0x20, 0x0001, 0x51, 1, 0x31, 0x20, 0, 1,
-			3, 1, 0x67, 0x88, 1, 1, 0xC00F,
+		sensorNum = 1 + (16 * chassisCardNum)
+		sensorAdd(0x20, 0, sensorNum, 1, 1)
+		sensorName1 = append(sensorName1, '0'+chassisCardNum)
+		sensorName1 = append(sensorName1,
+			[]uint8{'D', 'J', 't', 'e', 'm', 'p'}...)
+		mainSdrAdd(0x20, 0x0001, 0x51, 1, 0x32, 0x20, 0, sensorNum,
+			3, chassisCardNum, 0x67, 0x88, 1, 1, 0xC00F,
 			0xC07F, 0x3838, 0, 1, 0, 0,
 			1, 0, 0, 0, 0, 0, 3, 0x60,
 			0xB0, 0, 0xB0, 0, 0xA0, 0x90, 0x66, 0,
-			0, 0, 0, 0, 0, 0, 0, 0xC6,
+			0, 0, 0, 0, 0, 0, 0, 0xC7,
 			sensorName1)
 
 		// sensor 2 - voltage
-		sensorAdd(0x20, 0, 2, 2, 1)
-		sensorName2 := []uint8{'M', 'X', 'v', 'o', 'l', 't', 'a', 'g', 'e'}
-		mainSdrAdd(0x20, 0x0002, 0x51, 1, 0x34, 0x20, 0, 2,
-			3, 1, 0x67, 0x88, 2, 1, 0xC00F,
+		sensorNum = 2 + (16 * chassisCardNum)
+		sensorAdd(0x20, 0, sensorNum, 2, 1)
+		sensorName2 = append(sensorName2, '0'+chassisCardNum)
+		sensorName2 = append(sensorName2,
+			[]uint8{'M', 'X', 'v', 'o', 'l', 't', 'a', 'g', 'e'}...)
+		mainSdrAdd(0x20, 0x0002, 0x51, 1, 0x35, 0x20, 0, sensorNum,
+			3, chassisCardNum, 0x67, 0x88, 2, 1, 0xC00F,
 			0xC07F, 0x3838, 0, 4, 0, 0,
 			1, 0, 0, 0, 0, 0, 3, 0,
 			0, 0x0D, 0x10, 0x0C, 0x0F, 0x0E, 0x0D, 0,
-			0, 0, 0, 0, 0, 0, 0, 0xC9,
+			0, 0, 0, 0, 0, 0, 0, 0xCA,
 			sensorName2)
 
 		// sensor 3 - current
-		sensorAdd(0x20, 0, 3, 3, 1)
-		sensorName3 := []uint8{'M', 'X', 'c', 'u', 'r', 'r', 'e', 'n', 't'}
-		mainSdrAdd(0x20, 0x0003, 0x51, 1, 0x34, 0x20, 0, 3,
-			3, 1, 0x67, 0x88, 3, 1, 0xC00F,
+		sensorNum = 3 + (16 * chassisCardNum)
+		sensorAdd(0x20, 0, sensorNum, 3, 1)
+		sensorName3 = append(sensorName3, '0'+chassisCardNum)
+		sensorName3 = append(sensorName3,
+			[]uint8{'M', 'X', 'c', 'u', 'r', 'r', 'e', 'n', 't'}...)
+		mainSdrAdd(0x20, 0x0003, 0x51, 1, 0x35, 0x20, 0, sensorNum,
+			3, chassisCardNum, 0x67, 0x88, 3, 1, 0xC00F,
 			0xC07F, 0x3838, 0, 5, 0, 0,
 			1, 0, 0, 0, 0, 0, 3, 0,
 			0, 3, 6, 5, 7, 6, 5, 0,
-			0, 0, 0, 0, 0, 0, 0, 0xC9,
+			0, 0, 0, 0, 0, 0, 0, 0xCA,
 			sensorName3)
 
 		// sensor 4 - fan
-		sensorAdd(0x20, 0, 4, 4, 1)
-		sensorName4 := []uint8{'F', 'X', 'f', 'a', 'n', 'r', 'e', 'a', 'd'}
-		mainSdrAdd(0x20, 0x0004, 0x51, 1, 0x34, 0x20, 0, 4,
-			3, 1, 0x67, 0x88, 4, 1, 0xC00F,
+		sensorNum = 4 + (16 * chassisCardNum)
+		sensorAdd(0x20, 0, sensorNum, 4, 1)
+		sensorName4 = append(sensorName4, '0'+chassisCardNum)
+		sensorName4 = append(sensorName4,
+			[]uint8{'F', 'X', 'f', 'a', 'n', 'r', 'e', 'a', 'd'}...)
+		mainSdrAdd(0x20, 0x0004, 0x51, 1, 0x35, 0x20, 0, sensorNum,
+			3, chassisCardNum, 0x67, 0x88, 4, 1, 0xC00F,
 			0xC07F, 0x3838, 4, 0x12, 0x0A, 0,
 			1, 0, 0, 0, 0, 0, 3, 0,
 			0, 0x28, 0x50, 0x32, 0x46, 0x3C, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0xC9,
+			0, 0, 0, 0, 0, 0, 0, 0xCA,
 			sensorName4)
 
 		// Add an event log to sel for sensor 1
@@ -187,6 +213,16 @@ func bmcInit() {
 		//lm75 (temp monitor)
 	}
 
+	// Start ticker for sensor polling in a gofunc
+	ticker := time.NewTicker(time.Second * 3)
+	go func() {
+		for t := range ticker.C {
+			if debug {
+				fmt.Println("Tick at", t)
+			}
+			pollSensors()
+		}
+	}()
 }
 
 func sensorAdd(bmc uint8, lun uint8, num uint8, stype uint8, code uint8) {
@@ -196,12 +232,12 @@ func sensorAdd(bmc uint8, lun uint8, num uint8, stype uint8, code uint8) {
 	sensor.num = num
 	sensor.sensorType = stype
 	sensor.eventReadingCode = code
-	mc.sensors[lun][num] = sensor
-
 	sensor.enabled = true
 	sensor.eventStatus = 0
 	sensor.eventsEnabled = true
 	sensor.scanningEnabled = true
+
+	mc.sensors[lun][num] = sensor
 }
 
 func mainSdrAdd(bmc uint8, recordId uint16, sdrVers uint8,
@@ -219,6 +255,11 @@ func mainSdrAdd(bmc uint8, recordId uint16, sdrVers uint8,
 	pgThrHyst uint8, ngThrHyst uint8, res1 uint8, res2 uint8,
 	oem uint8, idStrLghtCode uint8, idStr []uint8) {
 
+	var (
+		msgData []uint8
+		try     int
+	)
+
 	// Range check the list
 	if mc.mainSdrs.nextFreeEntryId >= mc.mainSdrs.maxSdrCount {
 		fmt.Println("mainSdrs are full!")
@@ -230,6 +271,12 @@ func mainSdrAdd(bmc uint8, recordId uint16, sdrVers uint8,
 	newSdr.recordId = mc.mainSdrs.nextFreeEntryId
 	mc.mainSdrs.nextFreeEntryId++
 	newSdr.length = 48 + uint8(idStrLghtCode&0x1F) + 5
+	newSdr.enabled = true
+	newSdr.eventsEnabled = true
+	newSdr.scanningEnabled = true
+	newSdr.eventStatus = 0
+	newSdr.lun = sensorOwnerLun
+	newSdr.sensNum = sensorNum
 
 	// Serialize SDR record into newSdr's data
 	binary.LittleEndian.PutUint16(newSdr.data[0:2], newSdr.recordId)
@@ -290,6 +337,19 @@ func mainSdrAdd(bmc uint8, recordId uint16, sdrVers uint8,
 	nowUnix := uint32(now.Unix())
 	mc.sel.lastAddTime = nowUnix
 	mc.mainSdrs.sdrCount++
+
+	// If an LC send this new SDR to MM
+	if chassisCardNum > 0 {
+		msgData = addSdrBuildMsg(newSdr)
+		for try = 0; try < MAX_RETRIES; try++ {
+			if ipmiReqRsp(mc.mmConn, msgData, addSdrParseRsp) {
+				break
+			}
+		}
+		if try >= MAX_RETRIES {
+			panic("ipmiClient add-sdr to MM")
+		}
+	}
 }
 
 func findSelEventByRecid(recordId uint16) *selEntryT {

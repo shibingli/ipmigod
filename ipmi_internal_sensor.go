@@ -158,45 +158,43 @@ func getSensorEventStatus(msg *msgT) {
 
 func getSensorReading(msg *msgT) {
 
-	var data [5]uint8
+	var (
+		entry *sdrT
+		data  [5]uint8
+	)
 
 	sensNum := msg.data[msg.dataStart]
-	if mc.sensors[msg.rmcp.message.rsLun][sensNum] == nil {
+	entry = mc.mainSdrs.sdrs
+	for entry != nil {
+		if entry.lun == msg.rmcp.message.rsLun &&
+			entry.sensNum == sensNum {
+			break
+		}
+		entry = entry.next
+	}
+	if entry == nil {
+		fmt.Printf("getSensorReading: Can't find sensor %d:%d",
+			msg.rmcp.message.rsLun, sensNum)
 		msg.returnErr(nil, 0x81)
 		return
 	}
 
-	sensor := mc.sensors[msg.rmcp.message.rsLun][sensNum]
-
 	data[0] = 0
-	if simulate {
-		switch sensNum {
-		case 1:
-			data[1] = uint8(rand.Int()&0xf) + 20
-		case 2:
-			data[1] = uint8(rand.Int() & 0xf)
-		case 3:
-			data[1] = uint8(rand.Int() & 0x7)
-		case 4:
-			data[1] = uint8(rand.Int() & 0x3f)
-		}
-	} else {
-		data[1] = sensor.value
-	}
+	data[1] = entry.value
 	var sensEn uint8
-	if sensor.eventsEnabled {
+	if entry.eventsEnabled {
 		sensEn = 1
 	} else {
 		sensEn = 0
 	}
 	var scanEn uint8
-	if sensor.scanningEnabled && sensor.enabled {
+	if entry.scanningEnabled && entry.enabled {
 		scanEn = 1
 	} else {
 		scanEn = 0
 	}
 	data[2] = (sensEn << 7) | (scanEn << 6)
-	binary.LittleEndian.PutUint16(data[3:5], sensor.eventStatus)
+	binary.LittleEndian.PutUint16(data[3:5], entry.eventStatus)
 
 	msg.returnRspData(nil, data[0:5], 5)
 }
@@ -209,4 +207,73 @@ func setSensorType(msg *msgT) {
 func getSensorType(msg *msgT) {
 	fmt.Println("sensorEventNetfn not supported",
 		msg.rmcp.message.cmd)
+}
+
+func pollSensors() {
+
+	var (
+		value   uint8
+		lun     uint8
+		sensNum uint8
+		entry   *sdrT
+		msgData []uint8
+		try     int
+	)
+	for lun = 0; lun < 4; lun++ {
+		for sensNum = 1; sensNum < 255; sensNum++ {
+			if mc.sensors[lun][sensNum] == nil {
+				continue
+			}
+			sensor := mc.sensors[lun][sensNum]
+
+			if simulate {
+				// update sensors locally only
+				switch sensNum {
+				case 1, 17, 33:
+					value = uint8(rand.Int()&0xf) + 20
+				case 2, 18, 34:
+					value = uint8(rand.Int() & 0xf)
+				case 3, 19, 35:
+					value = uint8(rand.Int() & 0x7)
+				case 4, 20, 36:
+					value = uint8(rand.Int() & 0x3f)
+				}
+			} else {
+				// FIXME - need to go out to sysfs for value
+				// for local sensors. If sensNum >=16 then
+				// we are on LC and need to initiate
+				// partialAddSdr to MM
+			}
+			sensor.value = value
+
+			// Find and update SDR for this sensor
+			entry = mc.mainSdrs.sdrs
+			for entry != nil {
+				if entry.lun == lun &&
+					entry.sensNum == sensNum {
+					break
+				}
+				entry = entry.next
+			}
+			entry.value = value
+
+			// If we are on LC and need to initiate
+			// special addSdr to MM. This special addSdr will use
+			// oem field of SDR record to sneak out the
+			// sensor reading for this sensor.
+			if chassisCardNum > 0 {
+				msgData = addSdrBuildMsg(entry)
+				msgData[66] = value
+				for try = 0; try < MAX_RETRIES; try++ {
+					if ipmiReqRsp(mc.mmConn, msgData,
+						addSdrParseRsp) {
+						break
+					}
+				}
+				if try >= MAX_RETRIES {
+					panic("ipmiClient spec add-sdr to MM")
+				}
+			}
+		}
+	}
 }
