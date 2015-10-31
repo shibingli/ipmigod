@@ -8,7 +8,7 @@ package ipmigod
 import (
 	"encoding/binary"
 	"fmt"
-	_ "github.com/platinasystems/goes/cli"
+	. "github.com/platinasystems/goes/cli"
 	"log"
 	"net"
 )
@@ -112,7 +112,9 @@ func init() {
 	ipmiLanInit()
 }
 
-func Main(mmCardMode bool, cardNum int) {
+func Main(ctx *Context, mmCardMode bool, cardNum int) {
+
+	udpMessages := make(chan *msgT)
 
 	chassisCardNum = uint8(cardNum)
 	fmt.Println("mmCard", mmCardMode, "cardNum", chassisCardNum)
@@ -142,23 +144,36 @@ func Main(mmCardMode bool, cardNum int) {
 	}
 	defer serverConn.Close()
 
-	for {
+	go func(conn net.Conn) {
+		for {
+			msg := new(msgT)
+			n, remoteAddr, err :=
+				serverConn.ReadFromUDP(msg.data[0:])
+			msg.remoteAddr = remoteAddr
+			if debug {
+				fmt.Println("Received ", n, " bytes from ",
+					msg.remoteAddr)
+			}
+			if err != nil {
+				fmt.Println("Error: ", err)
+			}
+			msg.dataLen = uint(n)
+			msg.conn = serverConn
 
-		msg := new(msgT)
-		n, remoteAddr, err :=
-			serverConn.ReadFromUDP(msg.data[0:])
-		msg.remoteAddr = remoteAddr
-		if debug {
-			fmt.Println("Received ", n, " bytes from ",
-				msg.remoteAddr)
+			udpMessages <- msg
 		}
-		if err != nil {
-			fmt.Println("Error: ", err)
-			fmt.Printf("Error: Received %d bytes\n", n)
+	}(serverConn)
+
+	for {
+		select {
+		case msg := <-udpMessages:
+			msg.ipmiHandleMsg()
+		default:
+			if ctx.Signaled() {
+				fmt.Println("Got kill signal - returning")
+				return
+			}
 		}
-		msg.dataLen = uint(n)
-		msg.conn = serverConn
-		msg.ipmiHandleMsg()
 	}
 }
 

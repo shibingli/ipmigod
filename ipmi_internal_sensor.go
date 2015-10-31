@@ -219,6 +219,7 @@ func pollSensors() {
 		msgData []uint8
 		try     int
 	)
+
 	for lun = 0; lun < 4; lun++ {
 		for sensNum = 1; sensNum < 255; sensNum++ {
 			if mc.sensors[lun][sensNum] == nil {
@@ -271,7 +272,7 @@ func pollSensors() {
 					}
 				}
 				if try >= MAX_RETRIES {
-					panic("ipmiClient spec add-sdr to MM")
+					fmt.Println("ipmiClient spec add-sdr to MM")
 				}
 			}
 		}

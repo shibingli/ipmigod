@@ -200,6 +200,10 @@ func addSdr(msg *msgT) {
 		for entry != nil {
 			if entry.lun == lun &&
 				entry.sensNum == sensNum {
+				data[0] = 0
+				binary.LittleEndian.PutUint16(data[1:3],
+					entry.recordId)
+				msg.returnRspData(nil, data[0:3], 3)
 				return
 			}
 			entry = entry.next
