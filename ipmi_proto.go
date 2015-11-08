@@ -8,7 +8,6 @@ package ipmigod
 import (
 	"encoding/binary"
 	"fmt"
-	. "github.com/platinasystems/goes/cli"
 	"log"
 	"net"
 )
@@ -17,6 +16,7 @@ const (
 	MAX_MSG_RETURN_DATA = 1000
 )
 
+var Signaled = func() bool { return false }
 var service string = "10.0.0.3:623"
 var chassisCardNum uint8
 
@@ -112,7 +112,7 @@ func init() {
 	ipmiLanInit()
 }
 
-func Main(ctx *Context, mmCardMode bool, cardNum int) {
+func Ipmigod(mmCardMode bool, cardNum int) {
 
 	udpMessages := make(chan *msgT)
 
@@ -169,7 +169,7 @@ func Main(ctx *Context, mmCardMode bool, cardNum int) {
 		case msg := <-udpMessages:
 			msg.ipmiHandleMsg()
 		default:
-			if ctx.Signaled() {
+			if Signaled() {
 				fmt.Println("Got kill signal - returning")
 				return
 			}

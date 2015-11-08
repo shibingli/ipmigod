@@ -8,8 +8,6 @@ package ipmigod
 import (
 	"encoding/binary"
 	"fmt"
-	_ "github.com/platinasystems/goes/cli"
-	_ "log"
 	"net"
 	"time"
 )
